@@ -1,7 +1,7 @@
 # Project London
 Project London is an experimental implementation of etcd api on top of Azure Storage Table. The implementation is scoped
 to supporting kubernetes clusters. A full implementation of etcd api is not on the scope of this project. A full implementation 
-of etcd api on top azure storage is also not impossible due to way azure table perform transactions.
+of etcd api on top azure storage is also not possible due to way azure table perform transactions.
 
 > While the functional correctness has been validated, the project is still in alpha status and we are tracking a set of known issues.
 
