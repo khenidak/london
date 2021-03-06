@@ -60,6 +60,7 @@ func NewBackend(c *config.Config) (Backend, error) {
 		config: c,
 		rev:    revisioner,
 		t:      c.Runtime.StorageTable,
+		client: c.Runtime.TableClient,
 	}
 
 	if err := s.ensureStore(); err != nil {
@@ -72,8 +73,10 @@ func NewBackend(c *config.Config) (Backend, error) {
 func (s *store) CurrentRevision() (int64, error) {
 	return s.rev.Current()
 }
+
 func (s *store) ensureStore() error {
 	// TODO -- should we auto create the table?
+	s.t.Create(100, storage.EmptyPayload, &storage.TableOptions{})
 	// Test that we have write acces
 	e := &storage.Entity{
 		Table: s.t,
