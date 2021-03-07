@@ -27,7 +27,7 @@ func init() {
 }
 
 // creates a test etcd listener on top of azure storage table
-func CreateTestApp(c *config.Config, t *testing.T) (stop func()) {
+func CreateTestApp(c *config.Config, t testing.TB) (stop func()) {
 	t.Helper()
 	be, err := backend.NewBackend(c)
 	if err != nil {
@@ -58,7 +58,7 @@ func addressFromListenAddress(s string) string {
 	return parts[1]
 }
 
-func MakeTestEtcdClient(c *config.Config, t *testing.T) *clientv3.Client {
+func MakeTestEtcdClient(c *config.Config, t testing.TB) *clientv3.Client {
 	address := addressFromListenAddress(c.ListenAddress)
 	clientConfig := clientv3.Config{
 		Endpoints:   []string{address, address, address},

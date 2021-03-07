@@ -11,14 +11,30 @@ import (
 	basictestutils "github.com/khenidak/london/test/utils/basic"
 )
 
-// Put is not used by kubernetes, however we built it to ensure basic
-// etcdclient works as expected
+func BenchmarkPut(b *testing.B) {
+	c := basictestutils.MakeTestConfig(b)
+	stopfn := testutils.CreateTestApp(c, b)
+	defer stopfn()
+
+	client := testutils.MakeTestEtcdClient(c, b)
+
+	for i := 0; i < b.N; i++ {
+		integrationPut(b, client)
+	}
+}
+
 func TestIntegrationPut(t *testing.T) {
 	c := basictestutils.MakeTestConfig(t)
 	stopfn := testutils.CreateTestApp(c, t)
 	defer stopfn()
 
 	client := testutils.MakeTestEtcdClient(c, t)
+	integrationPut(t, client)
+}
+
+// Put is not used by kubernetes, however we built it to ensure basic
+// etcdclient works as expected
+func integrationPut(t testing.TB, client *clientv3.Client) {
 
 	k := testutils.RandKey(16)
 	v := testutils.RandStringRunes(16)

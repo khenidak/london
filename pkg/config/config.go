@@ -151,7 +151,6 @@ var CosmosDbAdditionalHeaders = map[string]string{
 
 func (c *Config) InitRuntime() error {
 	var err error
-	fmt.Printf("Endpoint suffix was %s\n", c.StorageKey.EndpointSuffix)
 	if c.StorageKey.EndpointSuffix != "" {
 		//if cosmos then use newcosmosclient? seems ot just use different validation on accountname
 		c.Runtime.StorageClient, err = storage.NewClient(c.AccountName, c.StorageKey.AccountPrimaryKey,
@@ -166,7 +165,6 @@ func (c *Config) InitRuntime() error {
 	//use explicit cosmos flag in the config?
 	if strings.Contains(c.StorageKey.EndpointSuffix, "cosmos.") {
 		//black magic to make cosmos db work with old go client
-		fmt.Printf("using cosmos since tableendpoint was %s\n", c.StorageKey.EndpointSuffix)
 		c.Runtime.StorageClient.AddAdditionalHeaders(CosmosDbAdditionalHeaders)
 	}
 
