@@ -18,3 +18,6 @@ hack/testing_vars
 kubernetes_src
 london
 *.swp
+
+# Visual studio
+.vscode/
