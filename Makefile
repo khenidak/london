@@ -7,7 +7,6 @@ hackDir:=hack
 testingVarsFileName:="testing_vars"
 varFilePath:=$(mkfile_dirpath)/$(hackDir)/$(testingVarsFileName)
 kubernetes_testdir_name="kubernetes_src"
-kubernetes_ver="v1.20.0"
 
 ## version mgmt
 VERSION := $(shell git rev-parse --short HEAD)
@@ -16,6 +15,9 @@ BUILDTIME := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 GOLDFLAGS += -X main.Version=$(VERSION)
 GOLDFLAGS += -X main.Buildtime=$(BUILDTIME)
 GOFLAGS = -ldflags "$(GOLDFLAGS)"
+
+# Test variables
+KUBERNETES_VERSION ?= "v1.20.0"
 
 help: ## show this help.
 	@fgrep -h "##" $(MAKEFILE_LIST) | fgrep -v fgrep | sed -e 's/\\$$//' | sed -e 's/##//'
@@ -32,7 +34,7 @@ build-binary: prep-outputdir ## builds binary and drop it  in output directory
 	@echo "** built binary is at:$(mkfile_dirpath)/$(outputDir)/$(binaryName) "
 
 get-kubernetes: ## gets kubernetes source code for e2e tests
-	@$(mkfile_dirpath)/$(hackDir)/get_kubernetes.sh "$(kubernetes_ver)" "$(mkfile_dirpath)/$(kubernetes_testdir_name)" $(mkfile_dirpath)
+	@$(mkfile_dirpath)/$(hackDir)/get_kubernetes.sh "$(KUBERNETES_VERSION)" "$(mkfile_dirpath)/$(kubernetes_testdir_name)" $(mkfile_dirpath)
 
 
 e2e-test: get-kubernetes  ## runs e2e tests against an in-proc kube-api-server
