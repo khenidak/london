@@ -28,6 +28,7 @@ clean: ## cleans output
 prep-outputdir: ## creates output directory
 	@mkdir -p $(mkfile_dirpath)/$(outputDir)
 
+#Depend on get-kubernetes?
 build-binary: prep-outputdir ## builds binary and drop it  in output directory
 	@echo "** building binary with version:$(VERSION)"
 	@go build -o $(mkfile_dirpath)/$(outputDir)/$(binaryName) $(GOFLAGS) $(mkfile_dirpath)/.

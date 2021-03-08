@@ -17,6 +17,7 @@ require (
 	github.com/urfave/cli v1.22.2
 	go.etcd.io/etcd v0.5.0-alpha.5.0.20200910180754-dd1b699fc489
 	go.uber.org/zap v1.16.0 // indirect
+	golang.org/dl v0.0.0-20210220033039-562909534da3 // indirect
 	google.golang.org/grpc v1.27.1
 	k8s.io/api v0.0.0
 	k8s.io/apimachinery v0.0.0

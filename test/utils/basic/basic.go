@@ -2,6 +2,8 @@ package basic
 
 import (
 	"bufio"
+	"errors"
+	"net/http"
 	"os"
 	"strings"
 
@@ -14,7 +16,7 @@ import (
 
 // parses testing vars file (expected to be as ENV VAR) and convert it
 // to a map
-func GetTestingVars(t *testing.T) map[string]string {
+func GetTestingVars(t testing.TB) map[string]string {
 	m := make(map[string]string)
 	testingVarsPath := os.Getenv("LONDON_TESTING_VARS")
 	if len(testingVarsPath) == 0 {
@@ -41,7 +43,7 @@ func GetTestingVars(t *testing.T) map[string]string {
 }
 
 // creates test config based on testing var file.
-func MakeTestConfig(t *testing.T) *config.Config {
+func MakeTestConfig(t testing.TB) *config.Config {
 	configVals := GetTestingVars(t)
 
 	_, useTLS := configVals["USE_TLS"]
@@ -49,6 +51,7 @@ func MakeTestConfig(t *testing.T) *config.Config {
 	c := &config.Config{}
 	c.AccountName = configVals["ACCOUNT_NAME"]
 	c.StorageKey.AccountPrimaryKey = configVals["ACCOUNT_KEY"]
+	c.StorageKey.ConnectionString = configVals["CONNECTION_STRING"]
 	c.TableName = configVals["TABLE_NAME"]
 	// listening
 	c.ListenAddress = "tcp://0.0.0.0:2379"
@@ -57,6 +60,10 @@ func MakeTestConfig(t *testing.T) *config.Config {
 		c.TLSConfig.CertFilePath = configVals["SERVER_CERT_FILE_PATH"]
 		c.TLSConfig.KeyFilePath = configVals["SERVER_KEY_FILE_PATH"]
 		c.TLSConfig.TrustedCAFile = configVals["CLIENT_TRUSTED_CA_FILE_PATH"]
+	}
+
+	if err := c.Validate(); err != nil {
+		t.Fatalf("failed to validate config:%v", err)
 	}
 
 	if err := c.InitRuntime(); err != nil {
@@ -74,38 +81,17 @@ func MakeTestConfig(t *testing.T) *config.Config {
 	return c
 }
 
-func ClearTable(t *testing.T, c *config.Config) {
-	all := make([]*storage.Entity, 0)
-
-	o := &storage.QueryOptions{
-		Filter: "",
-	}
-	res, err := c.Runtime.StorageTable.QueryEntities(1, storage.MinimalMetadata, o)
+func ClearTable(t testing.TB, c *config.Config) {
+	//cosmos db is cool with this but old storage takes a long time to delete
+	err := c.Runtime.StorageTable.Delete(100, &storage.TableOptions{})
 	if err != nil {
-		t.Fatalf("CLEAR-TABLE-FAILED: error query table :%v", err)
-	}
-	all = append(all, res.Entities...)
-	for {
-		if res.NextLink == nil {
-			break
+		var status storage.AzureStorageServiceError
+		if !errors.As(err, &status) {
+			t.Fatalf("unknown err:%v", err)
 		}
 
-		res, err = res.NextResults(nil) // TODO: <-- is this correct??
-		if err != nil {
-			t.Fatalf("CLEAR-TABLE-FAILED: error query tablei - next :%v", err)
+		if status.StatusCode != http.StatusNotFound {
+			t.Fatalf("got status code %d:  %v", status.StatusCode, err)
 		}
-		all = append(all, res.Entities...)
-	}
-
-	for _, e := range all {
-		batch := c.Runtime.StorageTable.NewBatch()
-		batch.Table = c.Runtime.StorageTable
-
-		batch.DeleteEntity(e, true)
-		err := batch.ExecuteBatch()
-		if err != nil {
-			t.Fatalf("failed to execute batch to clear table:%v", err)
-		}
-
 	}
 }
