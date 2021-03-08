@@ -82,6 +82,7 @@ func MakeTestConfig(t testing.TB) *config.Config {
 }
 
 func ClearTable(t testing.TB, c *config.Config) {
+	//cosmos db is cool with this but old storage takes a long time to delete
 	err := c.Runtime.StorageTable.Delete(100, &storage.TableOptions{})
 	if err != nil {
 		var status storage.AzureStorageServiceError

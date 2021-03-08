@@ -1,6 +1,9 @@
 package backend
 
 import (
+	"errors"
+	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
@@ -76,7 +79,17 @@ func (s *store) CurrentRevision() (int64, error) {
 
 func (s *store) ensureStore() error {
 	// TODO -- should we auto create the table?
-	s.t.Create(100, storage.EmptyPayload, &storage.TableOptions{})
+	err := s.t.Create(100, storage.EmptyPayload, &storage.TableOptions{})
+	if err != nil {
+		var status storage.AzureStorageServiceError
+		if !errors.As(err, &status) {
+			return err
+		}
+
+		if status.StatusCode != http.StatusConflict {
+			return fmt.Errorf("got status code %d:  %v", status.StatusCode, err)
+		}
+	}
 	// Test that we have write acces
 	e := &storage.Entity{
 		Table: s.t,

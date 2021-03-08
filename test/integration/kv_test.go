@@ -3,32 +3,46 @@ package integration
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	"go.etcd.io/etcd/clientv3"
+	klogv2 "k8s.io/klog/v2"
 
 	testutils "github.com/khenidak/london/test/utils"
 	basictestutils "github.com/khenidak/london/test/utils/basic"
 )
 
+func TestMain(m *testing.M) {
+	/*file, err := os.Create("integration.txt")
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	klogv2.SetOutput(file)*/
+	klogv2.LogToStderr(false)
+	os.Exit(m.Run())
+}
 func BenchmarkPut(b *testing.B) {
-	c := basictestutils.MakeTestConfig(b)
-	stopfn := testutils.CreateTestApp(c, b)
-	defer stopfn()
-
-	client := testutils.MakeTestEtcdClient(c, b)
-
+	client, stop := getClient(b)
+	defer stop()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		integrationPut(b, client)
 	}
 }
 
-func TestIntegrationPut(t *testing.T) {
-	c := basictestutils.MakeTestConfig(t)
-	stopfn := testutils.CreateTestApp(c, t)
-	defer stopfn()
+func getClient(tb testing.TB) (*clientv3.Client, func()) {
+	c := basictestutils.MakeTestConfig(tb)
+	stopfn := testutils.CreateTestApp(c, tb)
 
-	client := testutils.MakeTestEtcdClient(c, t)
+	client := testutils.MakeTestEtcdClient(c, tb)
+	return client, stopfn
+}
+
+func TestIntegrationPut(t *testing.T) {
+	client, stop := getClient(t)
+	defer stop()
 	integrationPut(t, client)
 }
 
@@ -158,16 +172,26 @@ func TestIntegrationTxnDelete(t *testing.T) {
 	}
 }
 
-func TestIntgrationUpdate(t *testing.T) {
-	c := basictestutils.MakeTestConfig(t)
-	stopfn := testutils.CreateTestApp(c, t)
-	defer stopfn()
+func BenchmarkUpdate(b *testing.B) {
+	client, stop := getClient(b)
+	defer stop()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		intgrationUpdate(client, b)
+	}
+}
 
+func TestIntgrationUpdate(t *testing.T) {
+	client, stop := getClient(t)
+	defer stop()
+	intgrationUpdate(client, t)
+}
+
+func intgrationUpdate(client *clientv3.Client, t testing.TB) {
 	k := testutils.RandKey(16)
 	v := testutils.RandStringRunes(16)
 	updatedv := testutils.RandStringRunes(16)
 
-	client := testutils.MakeTestEtcdClient(c, t)
 	ctx := context.TODO()
 
 	res, err := client.Put(ctx, k, v)
@@ -301,19 +325,29 @@ func TestIntgrationCompact(t *testing.T) {
 	}
 }
 
-func TestIntgrationRaneList(t *testing.T) {
-	c := basictestutils.MakeTestConfig(t)
-	stopfn := testutils.CreateTestApp(c, t)
-	defer stopfn()
+func BenchmarkRaneList(b *testing.B) {
+	client, stop := getClient(b)
+	defer stop()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		intgrationRaneList(client, b)
+	}
+}
 
-	client := testutils.MakeTestEtcdClient(c, t)
+func TestIntgrationRaneList(t *testing.T) {
+	client, stop := getClient(t)
+	defer stop()
+	intgrationRaneList(client, t)
+}
+
+func intgrationRaneList(client *clientv3.Client, t testing.TB) {
 	ctx := context.TODO()
 	firstComponent := testutils.RandStringRunes(8)
 	secondComponent := testutils.RandStringRunes(8)
 
 	keyFormat := "/%s/%s/%s"
 	prefix := fmt.Sprintf("/%s/%s/", firstComponent, secondComponent)
-	t.Logf("for this test 1st component:%v 2nd component:%v", firstComponent, secondComponent)
+	//t.Logf("for this test 1st component:%v 2nd component:%v", firstComponent, secondComponent)
 	testData := map[string]string{
 		fmt.Sprintf(keyFormat, firstComponent, secondComponent, "alpha"):    testutils.RandStringRunes(16),
 		fmt.Sprintf(keyFormat, firstComponent, secondComponent, "bravo"):    testutils.RandStringRunes(16),
