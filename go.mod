@@ -16,6 +16,9 @@ require (
 	github.com/google/uuid v1.1.4 // indirect
 	github.com/urfave/cli v1.22.2
 	go.etcd.io/etcd v0.5.0-alpha.5.0.20200910180754-dd1b699fc489
+	go.opentelemetry.io/otel v0.18.0
+	go.opentelemetry.io/otel/exporters/stdout v0.18.0
+	go.opentelemetry.io/otel/sdk v0.18.0
 	go.uber.org/zap v1.16.0 // indirect
 	golang.org/dl v0.0.0-20210220033039-562909534da3 // indirect
 	google.golang.org/grpc v1.27.1

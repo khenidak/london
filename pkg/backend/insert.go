@@ -1,6 +1,9 @@
 package backend
 
 import (
+	"context"
+
+	"go.opentelemetry.io/otel"
 	klogv2 "k8s.io/klog/v2"
 
 	storageerrors "github.com/khenidak/london/pkg/backend/storageerrors"
@@ -11,6 +14,10 @@ import (
 // The only way we can ensure that there is no "current" record is by using
 // rowKey == C and partition key is the same
 func (s *store) Insert(key string, value []byte, lease int64) (int64, error) {
+	tracer := otel.Tracer("london")
+	_, span := tracer.Start(context.TODO(), "insert")
+	defer span.End()
+
 	klogv2.Infof("STORE-INSERT: %v", key)
 	//	validKey := storerecord.CreateValidKey(key)
 	rev, err := s.rev.Increment()
