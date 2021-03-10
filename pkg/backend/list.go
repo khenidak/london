@@ -1,10 +1,12 @@
 package backend
 
 import (
+	"context"
 	"fmt"
 	"sort"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
+	"go.opentelemetry.io/otel"
 
 	"github.com/khenidak/london/pkg/backend/consts"
 	filterutils "github.com/khenidak/london/pkg/backend/filter"
@@ -91,6 +93,10 @@ func (s *store) execQuery(o *storage.QueryOptions,
 }
 
 func (s *store) ListForWatch(key string, startRevision int64) ([]types.Record, error) {
+	tracer := otel.Tracer("london")
+	_, span := tracer.Start(context.TODO(), "listwatch")
+	defer span.End()
+
 	validKey := storerecord.CreateValidKey(key)
 	validRevision := storerecord.RevToString(startRevision)
 	// build a filter string for
@@ -127,6 +133,10 @@ func (s *store) ListForWatch(key string, startRevision int64) ([]types.Record, e
 }
 
 func (s *store) ListForPrefix(key string) (int64, []types.Record, error) {
+	tracer := otel.Tracer("london")
+	_, span := tracer.Start(context.TODO(), "listprefix")
+	defer span.End()
+
 	validKey := storerecord.CreateValidKey(key)
 	bookKeeper, recordsMaker := s.getDefaultBookingKeepingFuncs(false)
 
@@ -163,6 +173,9 @@ func (s *store) ListForPrefix(key string) (int64, []types.Record, error) {
 
 // ListAllCurrent lists all current keys
 func (s *store) ListAllCurrent() (int64, []types.Record, error) {
+	tracer := otel.Tracer("london")
+	_, span := tracer.Start(context.TODO(), "listcurrent")
+	defer span.End()
 
 	// rKey == current && revision
 	// This query returns only row entities

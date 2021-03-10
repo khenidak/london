@@ -1,6 +1,9 @@
 package backend
 
 import (
+	"context"
+
+	"go.opentelemetry.io/otel"
 	klogv2 "k8s.io/klog/v2"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
@@ -16,6 +19,9 @@ import (
 // 2. create a new record that carries old value and revision (as row key)
 func (s *store) Update(key string, val []byte, revision int64, lease int64) (types.Record, error) {
 	klogv2.Infof("STORE-UPDATE:%v-%v", key, revision)
+	tracer := otel.Tracer("london")
+	_, span := tracer.Start(context.TODO(), "Update")
+	defer span.End()
 	validKey := storerecord.CreateValidKey(key)
 
 	// get new rev

@@ -1,9 +1,11 @@
 package backend
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
+	"go.opentelemetry.io/otel"
 	klogv2 "k8s.io/klog/v2"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
@@ -16,6 +18,9 @@ import (
 
 func (s *store) Get(key string, revision int64) (types.Record, int64, error) {
 	klogv2.Infof("STORE-GET: %v:%v", revision, key)
+	tracer := otel.Tracer("london")
+	_, span := tracer.Start(context.TODO(), "get")
+	defer span.End()
 
 	validKey := storerecord.CreateValidKey(key)
 	validRev := storerecord.RevToString(revision)

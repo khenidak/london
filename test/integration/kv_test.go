@@ -3,6 +3,7 @@ package integration
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"testing"
 
@@ -11,6 +12,9 @@ import (
 
 	testutils "github.com/khenidak/london/test/utils"
 	basictestutils "github.com/khenidak/london/test/utils/basic"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/stdout"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 func TestMain(m *testing.M) {
@@ -20,6 +24,18 @@ func TestMain(m *testing.M) {
 	}
 	defer file.Close()
 	klogv2.SetOutput(file)*/
+	exporter, err := stdout.NewExporter()
+	if err != nil {
+		log.Fatalf("failed to initialize stdout export pipeline: %v", err)
+	}
+	bsp := sdktrace.NewBatchSpanProcessor(exporter)
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(bsp))
+
+	// Handle this error in a sensible manner where possible
+	defer func() { _ = tp.Shutdown(context.Background()) }()
+	otel.SetTracerProvider(tp)
+	//propagator := propagation.NewCompositeTextMapPropagator(propagation.Baggage{}, propagation.TraceContext{})
+	//otel.SetTextMapPropagator(propagator)
 	klogv2.LogToStderr(false)
 	os.Exit(m.Run())
 }

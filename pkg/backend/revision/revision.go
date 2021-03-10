@@ -1,9 +1,11 @@
 package revision
 
 import (
+	"context"
 	"sync"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
+	"go.opentelemetry.io/otel"
 
 	"github.com/khenidak/london/pkg/backend/consts"
 	storageerrors "github.com/khenidak/london/pkg/backend/storageerrors"
@@ -49,6 +51,9 @@ func (r *rev) Current() (int64, error) {
 func (r *rev) Increment() (int64, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	tracer := otel.Tracer("london")
+	_, span := tracer.Start(context.TODO(), "revisionincrement")
+	defer span.End()
 
 	for {
 		var e *storage.Entity
