@@ -3,7 +3,7 @@ on:
   push:
     paths-ignore:
       - "**.md"
-  pull_request:
+  pull_request_target:
     paths-ignore:
       - "**.md"
 
