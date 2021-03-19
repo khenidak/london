@@ -58,12 +58,22 @@ type store struct {
 }
 
 func NewBackend(c *config.Config) (Backend, error) {
-	revisioner := revision.NewRevisioner(c.Runtime.StorageTable)
+	storageTable := c.Runtime.StorageTable
+	if c.UseRevisionTable {
+		storageTable = c.Runtime.RevisionStorageTable
+	}
+	revisioner := revision.NewRevisioner(storageTable)
 	s := &store{
 		config: c,
 		rev:    revisioner,
-		t:      c.Runtime.StorageTable,
-		client: c.Runtime.TableClient,
+	}
+
+	if c.UseRevisionTable {
+		s.t = c.Runtime.RevisionStorageTable
+		s.client = c.Runtime.RevisionTableClient
+	} else {
+		s.t = c.Runtime.StorageTable
+		s.client = c.Runtime.TableClient
 	}
 
 	if err := s.ensureStore(); err != nil {

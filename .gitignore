@@ -21,3 +21,6 @@ london
 
 # Visual studio
 .vscode/
+
+# Goland IDE
+.idea/
