@@ -82,10 +82,10 @@ func MakeTestConfig(t testing.TB) *config.Config {
 }
 
 func ClearTable(t testing.TB, c *config.Config) {
-	//cosmos db is cool with this but old storage takes a long time to delete
+	var status storage.AzureStorageServiceError
+	// cosmos db is cool with this but old storage takes a long time to delete
 	err := c.Runtime.StorageTable.Delete(100, &storage.TableOptions{})
 	if err != nil {
-		var status storage.AzureStorageServiceError
 		if !errors.As(err, &status) {
 			t.Fatalf("unknown err:%v", err)
 		}
@@ -93,5 +93,24 @@ func ClearTable(t testing.TB, c *config.Config) {
 		if status.StatusCode != http.StatusNotFound {
 			t.Fatalf("got status code %d:  %v", status.StatusCode, err)
 		}
+	}
+
+	tableCreated := false
+	attempts := 0
+	for attempts < 10 || !tableCreated {
+		// add the table back for other tests to successfully use it
+		err = c.Runtime.StorageTable.Create(100, storage.EmptyPayload, &storage.TableOptions{})
+		if err == nil {
+			tableCreated = true
+			continue
+		}
+		if !errors.As(err, &status) {
+			t.Fatalf("unknown err:%v", err)
+		}
+		// table deletion in the previous can take a few seconds to succeed before we can recreate again
+		if status.StatusCode != http.StatusConflict {
+			t.Fatalf("got status code %d:  %v", status.StatusCode, err)
+		}
+		attempts++
 	}
 }
