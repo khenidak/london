@@ -62,7 +62,7 @@ func MakeTestEtcdClient(c *config.Config, t testing.TB) *clientv3.Client {
 	address := addressFromListenAddress(c.ListenAddress)
 	clientConfig := clientv3.Config{
 		Endpoints:   []string{address, address, address},
-		DialTimeout: 5 * time.Second,
+		DialTimeout: 10 * time.Second,
 	}
 	configVals := basictestutils.GetTestingVars(t)
 	_, useTLS := configVals["USE_TLS"]

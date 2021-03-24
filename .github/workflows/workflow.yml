@@ -1,8 +1,5 @@
 name: Run tests
 on:
-  push:
-    paths-ignore:
-      - "**.md"
   pull_request:
     paths-ignore:
       - "**.md"
@@ -14,6 +11,8 @@ jobs:
     strategy:
       matrix:
         KUBERNETES_VERSION: ["v1.18.0", "v1.19.0", "v1.20.0"]
+      # we want the rest of matrix to run even if one jobs fails
+      fail-fast: false
     steps:
       - name: Set up Go 1.15
         uses: actions/setup-go@v2
