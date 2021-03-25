@@ -7,7 +7,7 @@ import (
 )
 
 func TestRevisioner(t *testing.T) {
-	c := basictestutils.MakeTestConfig(t)
+	c := basictestutils.MakeTestConfig(t, false)
 	r := NewRevisioner(c.Runtime.StorageTable)
 
 	first, err := r.Increment()

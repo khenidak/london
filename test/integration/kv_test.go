@@ -24,7 +24,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 func BenchmarkPut(b *testing.B) {
-	client, stop := getClient(b)
+	client, stop := getClient(b, false)
 	defer stop()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -32,8 +32,8 @@ func BenchmarkPut(b *testing.B) {
 	}
 }
 
-func getClient(tb testing.TB) (*clientv3.Client, func()) {
-	c := basictestutils.MakeTestConfig(tb)
+func getClient(tb testing.TB, clearTable bool) (*clientv3.Client, func()) {
+	c := basictestutils.MakeTestConfig(tb, clearTable)
 	stopfn := testutils.CreateTestApp(c, tb)
 
 	client := testutils.MakeTestEtcdClient(c, tb)
@@ -41,7 +41,7 @@ func getClient(tb testing.TB) (*clientv3.Client, func()) {
 }
 
 func TestIntegrationPut(t *testing.T) {
-	client, stop := getClient(t)
+	client, stop := getClient(t, false)
 	defer stop()
 	integrationPut(t, client)
 }
@@ -71,7 +71,7 @@ func integrationPut(t testing.TB, client *clientv3.Client) {
 }
 
 func TestIntegrationRangeGet(t *testing.T) {
-	c := basictestutils.MakeTestConfig(t)
+	c := basictestutils.MakeTestConfig(t, false)
 	stopfn := testutils.CreateTestApp(c, t)
 	defer stopfn()
 
@@ -102,7 +102,7 @@ func TestIntegrationRangeGet(t *testing.T) {
 }
 
 func TestIntegrationTxnInsert(t *testing.T) {
-	c := basictestutils.MakeTestConfig(t)
+	c := basictestutils.MakeTestConfig(t, false)
 	stopfn := testutils.CreateTestApp(c, t)
 	defer stopfn()
 
@@ -128,7 +128,7 @@ func TestIntegrationTxnInsert(t *testing.T) {
 }
 
 func TestIntegrationTxnDelete(t *testing.T) {
-	c := basictestutils.MakeTestConfig(t)
+	c := basictestutils.MakeTestConfig(t, false)
 	stopfn := testutils.CreateTestApp(c, t)
 	defer stopfn()
 
@@ -173,7 +173,7 @@ func TestIntegrationTxnDelete(t *testing.T) {
 }
 
 func BenchmarkUpdate(b *testing.B) {
-	client, stop := getClient(b)
+	client, stop := getClient(b, false)
 	defer stop()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -182,7 +182,7 @@ func BenchmarkUpdate(b *testing.B) {
 }
 
 func TestIntgrationUpdate(t *testing.T) {
-	client, stop := getClient(t)
+	client, stop := getClient(t, false)
 	defer stop()
 	intgrationUpdate(client, t)
 }
@@ -254,7 +254,7 @@ func intgrationUpdate(client *clientv3.Client, t testing.TB) {
 }
 
 func TestIntgrationCompact(t *testing.T) {
-	c := basictestutils.MakeTestConfig(t)
+	c := basictestutils.MakeTestConfig(t, false)
 	stopfn := testutils.CreateTestApp(c, t)
 	defer stopfn()
 
@@ -325,8 +325,8 @@ func TestIntgrationCompact(t *testing.T) {
 	}
 }
 
-func BenchmarkRaneList(b *testing.B) {
-	client, stop := getClient(b)
+func BenchmarkRangeList(b *testing.B) {
+	client, stop := getClient(b, false)
 	defer stop()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -334,8 +334,8 @@ func BenchmarkRaneList(b *testing.B) {
 	}
 }
 
-func TestIntgrationRaneList(t *testing.T) {
-	client, stop := getClient(t)
+func TestIntgrationRangeList(t *testing.T) {
+	client, stop := getClient(t, false)
 	defer stop()
 	intgrationRaneList(client, t)
 }

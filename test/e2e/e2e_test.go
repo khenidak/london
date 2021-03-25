@@ -21,7 +21,7 @@ import (
 
 func creatApiServer(t *testing.T) (stopEtcdApi func(), stopApiServer func(), apiHttpServer *httptest.Server) {
 	t.Helper()
-	c := basictestutils.MakeTestConfig(t)
+	c := basictestutils.MakeTestConfig(t, false)
 	// disable mtls
 	c.UseTlS = false
 

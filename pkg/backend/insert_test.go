@@ -55,7 +55,7 @@ func GetEntitiesForKeyRev(t *testing.T, c *config.Config, key string, rev int64)
 }
 
 func TestInsert(t *testing.T) {
-	c := basictestutils.MakeTestConfig(t)
+	c := basictestutils.MakeTestConfig(t, false)
 
 	be, err := NewBackend(c)
 	if err != nil {

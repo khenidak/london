@@ -12,7 +12,7 @@ import (
 )
 
 func TestIntegrationWatch(t *testing.T) {
-	c := basictestutils.MakeTestConfig(t)
+	c := basictestutils.MakeTestConfig(t, false)
 	stopfn := testutils.CreateTestApp(c, t)
 	defer stopfn()
 

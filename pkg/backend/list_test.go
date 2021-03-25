@@ -17,7 +17,7 @@ type change struct {
 }
 
 func TestListForWatch(t *testing.T) {
-	c := basictestutils.MakeTestConfig(t)
+	c := basictestutils.MakeTestConfig(t, false)
 
 	be, err := NewBackend(c)
 	if err != nil {
@@ -162,7 +162,7 @@ func TestListForWatch(t *testing.T) {
 }
 
 func TestListForPrefix(t *testing.T) {
-	c := basictestutils.MakeTestConfig(t)
+	c := basictestutils.MakeTestConfig(t, false)
 
 	be, err := NewBackend(c)
 	if err != nil {
@@ -247,7 +247,7 @@ func TestListForPrefix(t *testing.T) {
 	}
 }
 func TestListAllCurrent(t *testing.T) {
-	c := basictestutils.MakeTestConfig(t)
+	c := basictestutils.MakeTestConfig(t, true)
 
 	be, err := NewBackend(c)
 	if err != nil {
