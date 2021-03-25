@@ -92,6 +92,11 @@ func getRunFlags(config *config.Config) []cli.Flag {
 			Destination: &config.UseTlS,
 		},
 
+		cli.BoolFlag{
+			Name:        "use-revision-table",
+			Destination: &config.UseRevisionTable,
+		},
+
 		cli.StringFlag{
 			Name:        "cert-file",
 			Usage:       "path to the server TLS cert file",
@@ -122,6 +127,18 @@ func getRunFlags(config *config.Config) []cli.Flag {
 		},
 
 		cli.StringFlag{
+			Name:        "revision-account-name",
+			Usage:       "azure storage account name for revision",
+			Destination: &config.RevisionAccountName,
+		},
+
+		cli.StringFlag{
+			Name:        "revision-table-name",
+			Usage:       "azure storage table name for revision",
+			Destination: &config.RevisionTableName,
+		},
+
+		cli.StringFlag{
 			Name:        "azure-auth-type",
 			Usage:       "supported values storage-key:either key or connection string",
 			Value:       "storage-key",
@@ -135,8 +152,14 @@ func getRunFlags(config *config.Config) []cli.Flag {
 		},
 
 		cli.StringFlag{
+			Name:        "revision-primary-account-key",
+			Usage:       "azure storage account key for revision",
+			Destination: &config.StorageKey.RevisionAccountPrimaryKey,
+		},
+
+		cli.StringFlag{
 			Name:        "connection-string",
-			Usage:       "storage connection string. mutually execlusive with account name and key",
+			Usage:       "storage connection string. mutually exclusive with account name and key",
 			Destination: &config.StorageKey.ConnectionString,
 		},
 	}

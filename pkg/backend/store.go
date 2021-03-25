@@ -54,16 +54,18 @@ type store struct {
 	rev    revision.Revisioner
 	config *config.Config
 	t      *storage.Table
-	client storage.TableServiceClient
 }
 
 func NewBackend(c *config.Config) (Backend, error) {
-	revisioner := revision.NewRevisioner(c.Runtime.StorageTable)
+	revisioner, err := revision.NewRevisioner(c.Runtime.RevisionStorageTable)
+	if err != nil {
+		return nil, err
+	}
+
 	s := &store{
 		config: c,
 		rev:    revisioner,
 		t:      c.Runtime.StorageTable,
-		client: c.Runtime.TableClient,
 	}
 
 	if err := s.ensureStore(); err != nil {
@@ -90,7 +92,7 @@ func (s *store) ensureStore() error {
 			return fmt.Errorf("got status code %d:  %v", status.StatusCode, err)
 		}
 	}
-	// Test that we have write acces
+	// Test that we have write access
 	e := &storage.Entity{
 		Table: s.t,
 	}
