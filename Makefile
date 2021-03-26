@@ -51,13 +51,13 @@ integration-tests: get-kubernetes ## runs integeration test
 	@LONDON_TESTING_VARS=$(varFilePath) go test $(mkfile_dirpath)/test/integration  -count=1 $(ADD_TEST_ARGS)
 
 unit-tests: get-kubernetes ## runs unit test
-	@echo "** running unit test in @ $(mkfile_dirpath)/pkg/backend/revision"
+	@echo "** running unit test in @ $(mkfile_dirpath)/pkg/backend/storerecord"
 	@LONDON_TESTING_VARS=$(varFilePath) go test $(mkfile_dirpath)/pkg/backend/storerecord   -count=1 $(ADD_TEST_ARGS)  || exit 1
 	@echo "** running unit test in @ $(mkfile_dirpath)/pkg/backend/revision"
 	@LONDON_TESTING_VARS=$(varFilePath) go test $(mkfile_dirpath)/pkg/backend/revision  -count=1 $(ADD_TEST_ARGS) || exit 1
 	@echo "** running unit test in @ $(mkfile_dirpath)/pkg/backend/filter"
 	@LONDON_TESTING_VARS=$(varFilePath) go test $(mkfile_dirpath)/pkg/backend/filter   -count=1 $(ADD_TEST_ARGS) || exit 1
 	@echo "** running unit test in @ $(mkfile_dirpath)/pkg/backend"
-	@LONDON_TESTING_VARS=$(varFilePath) go test $(mkfile_dirpath)/pkg/backend  -count=1  $(ADD_TEST_ARGS) || exit 1
+	@LONDON_TESTING_VARS=$(varFilePath) go test $(mkfile_dirpath)/pkg/backend -count=1  $(ADD_TEST_ARGS) || exit 1
 
 test: unit-tests integration-tests e2e-test ## runs all tests
