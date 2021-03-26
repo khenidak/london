@@ -16,6 +16,11 @@ GOLDFLAGS += -X main.Version=$(VERSION)
 GOLDFLAGS += -X main.Buildtime=$(BUILDTIME)
 GOFLAGS = -ldflags "$(GOLDFLAGS)"
 
+# docker build variables
+REGISTRY ?= aramase
+IMAGE_NAME ?= london
+IMAGE_TAG ?= $(REGISTRY)/$(IMAGE_NAME):$(VERSION)
+
 # Test variables
 KUBERNETES_VERSION ?= "v1.20.0"
 
@@ -61,3 +66,11 @@ unit-tests: get-kubernetes ## runs unit test
 	@LONDON_TESTING_VARS=$(varFilePath) go test $(mkfile_dirpath)/pkg/backend -count=1  $(ADD_TEST_ARGS) || exit 1
 
 test: unit-tests integration-tests e2e-test ## runs all tests
+
+build-image: ## builds docker image using binary in _output directory
+	@docker build -t $(IMAGE_TAG) .
+
+push-image: ## pushes the image to registry
+	@docker push $(IMAGE_TAG)
+
+build-and-push-image: build-binary build-image push-image ## builds binary, image and pushes image
