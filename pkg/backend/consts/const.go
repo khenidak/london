@@ -29,9 +29,10 @@ const (
 	UpdatedFlag = "U"
 	DeletedFlag = "D"
 
-	EntityTypeRow   = "RR"
-	EntityTypeData  = "DD"
-	EntityTypeEvent = "EE"
+	EntityTypeRow            = "RR"
+	EntityTypeData           = "DD"
+	EntityTypeEvent          = "EE"
+	EntityTypeLeaderElection = "LE"
 
 	EventEntityRowKeyFormat = "event-%s-%s"
 	DataEntityRowKeyFormat  = "data-%v-%s"
@@ -70,3 +71,10 @@ func init() {
 		DataField9,
 	}
 }
+
+const (
+	LeaderElectPartitionName = "__LEADER_ELECT__"
+	// fields
+	LeaderElectOwnerNameFieldName = "ow"
+	LeaderElectExpiresOnFieldName = "eo"
+)

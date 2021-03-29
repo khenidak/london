@@ -48,6 +48,8 @@ type Backend interface {
 	ListForWatch(key string, startRevision int64) ([]types.Record, error)
 	DeleteAllBeforeRev(rev int64) (int64, error)
 	CurrentRevision() (int64, error)
+
+	NewLeaderElection(electionName string, myName string) types.LeaderElect
 }
 
 type store struct {
