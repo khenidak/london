@@ -14,7 +14,7 @@ import (
 )
 
 func TestDelete(t *testing.T) {
-	c := basictestutils.MakeTestConfig(t)
+	c := basictestutils.MakeTestConfig(t, false)
 
 	be, err := NewBackend(c)
 	if err != nil {
@@ -67,7 +67,7 @@ func TestDelete(t *testing.T) {
 
 func TestCompactDelete(t *testing.T) {
 
-	c := basictestutils.MakeTestConfig(t)
+	c := basictestutils.MakeTestConfig(t, false)
 
 	be, err := NewBackend(c)
 	if err != nil {

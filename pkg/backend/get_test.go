@@ -8,7 +8,7 @@ import (
 )
 
 func TestGet(t *testing.T) {
-	c := basictestutils.MakeTestConfig(t)
+	c := basictestutils.MakeTestConfig(t, false)
 
 	be, err := NewBackend(c)
 	if err != nil {

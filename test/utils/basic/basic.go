@@ -43,7 +43,7 @@ func GetTestingVars(t testing.TB) map[string]string {
 }
 
 // creates test config based on testing var file.
-func MakeTestConfig(t testing.TB) *config.Config {
+func MakeTestConfig(t testing.TB, clearTable bool) *config.Config {
 	configVals := GetTestingVars(t)
 
 	_, useTLS := configVals["USE_TLS"]
@@ -74,10 +74,11 @@ func MakeTestConfig(t testing.TB) *config.Config {
 	if dontRecreate {
 		return c
 	}
-	t.Logf("** CLEARING TABLE, will take a bit")
-	// TODO: Logic to drop and create table
-	ClearTable(t, c)
-
+	if clearTable {
+		t.Logf("** CLEARING TABLE, will take a bit")
+		// TODO: Logic to drop and create table
+		ClearTable(t, c)
+	}
 	return c
 }
 
