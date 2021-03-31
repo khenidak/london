@@ -1,7 +1,11 @@
 package revision
 
 import (
+	"errors"
+	"fmt"
+	"net/http"
 	"sync"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
 
@@ -22,10 +26,44 @@ type rev struct {
 	e *storage.Entity
 }
 
-func NewRevisioner(t *storage.Table) Revisioner {
-	return &rev{
+func NewRevisioner(t *storage.Table) (Revisioner,error) {
+	r := &rev{
 		t: t,
 	}
+	if err := r.ensureStore(); err != nil {
+		return nil, err
+	}
+	return r, nil
+}
+
+func (r *rev) ensureStore() error {
+	err := r.t.Create(100, storage.EmptyPayload, &storage.TableOptions{})
+	if err != nil {
+		var status storage.AzureStorageServiceError
+		if !errors.As(err, &status) {
+			return err
+		}
+
+		if status.StatusCode != http.StatusConflict {
+			return fmt.Errorf("got status code %d:  %v", status.StatusCode, err)
+		}
+	}
+	// Test that we have write access
+	e := &storage.Entity{
+		Table: r.t,
+	}
+	e.PartitionKey = consts.WriteTesterPartitionKey
+	e.RowKey = consts.WriteTestRowKey
+	e.Properties = map[string]interface{}{
+		"what_is_this": "we use it to test that keys/connection/sas/whatever allow write access",
+		"when":         time.Now().UTC().String(),
+	}
+
+	b := r.t.NewBatch()
+	b.Table = r.t
+
+	b.InsertOrMergeEntity(e, true)
+	return b.ExecuteBatch()
 }
 
 func (r *rev) Current() (int64, error) {

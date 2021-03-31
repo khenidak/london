@@ -8,11 +8,14 @@ import (
 
 func TestRevisioner(t *testing.T) {
 	c := basictestutils.MakeTestConfig(t, false)
-	r := NewRevisioner(c.Runtime.StorageTable)
+	r, err := NewRevisioner(c.Runtime.RevisionStorageTable)
+	if err != nil {
+		t.Fatalf("failed to create revisioner: %v", err)
+	}
 
 	first, err := r.Increment()
 	if err != nil {
-		t.Fatalf("failed to increament:%v", err)
+		t.Fatalf("failed to increment:%v", err)
 	}
 
 	t.Logf("current rev:%v", first)
@@ -23,7 +26,7 @@ func TestRevisioner(t *testing.T) {
 		added = added + 1
 		current, err = r.Increment()
 		if err != nil {
-			t.Fatalf("failed to increament:%v", err)
+			t.Fatalf("failed to increment:%v", err)
 		}
 	}
 

@@ -21,10 +21,11 @@ const (
 
 type AuthStorageKey struct {
 	//TODO account secondary key
-	AccountPrimaryKey string
-	ConnectionString  string
-	EndpointSuffix    string
-	IsCosmos          bool
+	AccountPrimaryKey         string
+	RevisionAccountPrimaryKey string
+	ConnectionString          string
+	EndpointSuffix            string
+	IsCosmos                  bool
 }
 
 type TLSConfig struct {
@@ -34,12 +35,15 @@ type TLSConfig struct {
 }
 
 type Runtime struct {
-	Done          chan struct{}
-	Stop          chan os.Signal
-	Context       context.Context
-	StorageClient storage.Client
-	TableClient   storage.TableServiceClient
-	StorageTable  *storage.Table
+	Done                  chan struct{}
+	Stop                  chan os.Signal
+	Context               context.Context
+	StorageClient         storage.Client
+	TableClient           storage.TableServiceClient
+	StorageTable          *storage.Table
+	RevisionStorageClient storage.Client
+	RevisionTableClient   storage.TableServiceClient
+	RevisionStorageTable  *storage.Table
 }
 
 type Config struct {
@@ -49,9 +53,19 @@ type Config struct {
 
 	AccountName string
 	TableName   string
+	StorageKey  AuthStorageKey
 
-	StorageKey AuthStorageKey
-	TLSConfig  TLSConfig
+	// RevisionAccountName is the account name for revision table
+	RevisionAccountName string
+	// RevisionTableName is the table name to use for revision
+	// if not set, will default to the table name
+	RevisionTableName string
+	// RevisionStorageKey is the storage key required to access
+	// revision table
+	RevisionStorageKey AuthStorageKey
+	UseRevisionTable   bool
+
+	TLSConfig TLSConfig
 
 	// TODO MSI etc
 
@@ -139,6 +153,22 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("trust client CA file is required when TLS is set to true")
 		}
 	}
+
+	// validation when a separate table is used for revision
+	if c.UseRevisionTable {
+		// check if table name, account name and storage key are provided if
+		// using a separate table for revision
+		if len(c.RevisionTableName) == 0 {
+			return fmt.Errorf("storage account table name is required for revision")
+		}
+		if len(c.RevisionAccountName) == 0 {
+			return fmt.Errorf("storage account name is required for revision")
+		}
+		if len(c.StorageKey.RevisionAccountPrimaryKey) == 0 {
+			return fmt.Errorf("storage account key is required for revision")
+		}
+	}
+
 	return nil
 }
 
@@ -152,14 +182,27 @@ var CosmosDbAdditionalHeaders = map[string]string{
 func (c *Config) InitRuntime() error {
 	var err error
 	if c.StorageKey.EndpointSuffix != "" {
-		//if cosmos then use newcosmosclient? seems ot just use different validation on accountname
-		c.Runtime.StorageClient, err = storage.NewClient(c.AccountName, c.StorageKey.AccountPrimaryKey,
-			c.StorageKey.EndpointSuffix, cosmosApiVersion, true)
+		// if cosmos then use newcosmosclient? seems ot just use different validation on accountname
+		if c.Runtime.StorageClient, err = storage.NewClient(c.AccountName, c.StorageKey.AccountPrimaryKey,
+			c.StorageKey.EndpointSuffix, cosmosApiVersion, true); err != nil {
+			return err
+		}
 	} else {
-		c.Runtime.StorageClient, err = storage.NewBasicClient(c.AccountName, c.StorageKey.AccountPrimaryKey)
-	}
-	if err != nil {
-		return err
+		if c.Runtime.StorageClient, err = storage.NewBasicClient(c.AccountName, c.StorageKey.AccountPrimaryKey); err != nil {
+			return err
+		}
+		// check if revision is using it's own table
+		if c.UseRevisionTable {
+			if c.Runtime.RevisionStorageClient, err = storage.NewBasicClient(c.RevisionAccountName, c.StorageKey.RevisionAccountPrimaryKey); err != nil {
+				return err
+			}
+		} else {
+			if c.Runtime.RevisionStorageClient, err = storage.NewBasicClient(c.AccountName, c.StorageKey.AccountPrimaryKey); err != nil {
+				return err
+			}
+			// use the same table for revision and store
+			c.RevisionTableName = c.TableName
+		}
 	}
 
 	//use explicit cosmos flag in the config?
@@ -170,6 +213,8 @@ func (c *Config) InitRuntime() error {
 
 	c.Runtime.TableClient = c.Runtime.StorageClient.GetTableService()
 	c.Runtime.StorageTable = c.Runtime.TableClient.GetTableReference(c.TableName)
+	c.Runtime.RevisionTableClient = c.Runtime.RevisionStorageClient.GetTableService()
+	c.Runtime.RevisionStorageTable = c.Runtime.RevisionTableClient.GetTableReference(c.RevisionTableName)
 
 	// wire up runtime stop and context
 	c.Runtime.Context = context.Background()

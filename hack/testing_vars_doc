@@ -28,3 +28,12 @@ SERVER_TRUSTED_CA_FILE_PATH <path>
 # testint to focus on the problem. Normally we don't clear the table to ensure that 
 # we can select what is needed and only what is needed
 #DO_NOT_RECREATE_TABLE
+#** if this flag exists, then test will use a separate table for revision.
+# REVISION_ACCOUNT_NAME, REVISION_ACCOUNT_KEY and REVISION_TABLE_NAME are required if flag is set
+#USE_REVISION_TABLE
+#** azure storage account name for revision
+REVISION_ACCOUNT_NAME <azure storage account name for revision>
+#** azure storage account key for revision
+REVISION_ACCOUNT_KEY <for testing we use keys, we don't yet support sas or imds>
+#** azure storage account table name for revision
+REVISION_TABLE_NAME <azure storage table name for revision>

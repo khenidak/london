@@ -47,12 +47,17 @@ func MakeTestConfig(t testing.TB, clearTable bool) *config.Config {
 	configVals := GetTestingVars(t)
 
 	_, useTLS := configVals["USE_TLS"]
+	_, useRevisionTable := configVals["USE_REVISION_TABLE"]
 
 	c := &config.Config{}
 	c.AccountName = configVals["ACCOUNT_NAME"]
 	c.StorageKey.AccountPrimaryKey = configVals["ACCOUNT_KEY"]
 	c.StorageKey.ConnectionString = configVals["CONNECTION_STRING"]
 	c.TableName = configVals["TABLE_NAME"]
+	c.RevisionAccountName = configVals["REVISION_ACCOUNT_NAME"]
+	c.StorageKey.RevisionAccountPrimaryKey = configVals["REVISION_ACCOUNT_KEY"]
+	c.RevisionTableName = configVals["REVISION_TABLE_NAME"]
+	c.UseRevisionTable = useRevisionTable
 	// listening
 	c.ListenAddress = "tcp://0.0.0.0:2379"
 	if useTLS {
