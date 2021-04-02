@@ -49,7 +49,16 @@ type Backend interface {
 	DeleteAllBeforeRev(rev int64) (int64, error)
 	CurrentRevision() (int64, error)
 
+	// leader election stuff
 	NewLeaderElection(electionName string, myName string) types.LeaderElect
+
+	// lease stuff
+	ListAllCurrentWithLease(leaseId int64) (int64, []types.Record, error)
+	CreateLease(lease *types.Lease) error
+	DeleteLease(id int64) error
+	UpdateLease(lease *types.Lease) error
+	GetLease(id int64) (*types.Lease, error)
+	GetLeases() ([]*types.Lease, error)
 }
 
 type store struct {

@@ -163,15 +163,33 @@ func (s *store) ListForPrefix(key string) (int64, []types.Record, error) {
 
 // ListAllCurrent lists all current keys
 func (s *store) ListAllCurrent() (int64, []types.Record, error) {
+	return s.listAllCurrent(0)
+}
 
-	// rKey == current && revision
-	// This query returns only row entities
+func (s *store) ListAllCurrentWithLease(leaseId int64) (int64, []types.Record, error) {
+	return s.listAllCurrent(leaseId)
+}
+
+// ListAllCurrent lists all current keys
+func (s *store) listAllCurrent(leaseId int64) (int64, []types.Record, error) {
+
 	f := filterutils.NewFilter()
-	f.And(
-		filterutils.CurrentKeysOnly(),
-		filterutils.ExcludeEvents(),
-		filterutils.ExcludeSysRecords(),
-	)
+	if leaseId == 0 {
+		// rKey == current && revision
+		// This query returns only row entities
+		f.And(
+			filterutils.CurrentKeysOnly(),
+			filterutils.ExcludeEvents(),
+			filterutils.ExcludeSysRecords(),
+		)
+	} else {
+		f.And(
+			filterutils.CurrentKeysOnly(),
+			filterutils.ExcludeEvents(),
+			filterutils.ExcludeSysRecords(),
+			filterutils.WithLease(fmt.Sprintf("%v", leaseId)),
+		)
+	}
 
 	o := &storage.QueryOptions{
 		Filter: f.Generate(),

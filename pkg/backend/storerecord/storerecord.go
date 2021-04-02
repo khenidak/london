@@ -63,7 +63,7 @@ func NewRecord(key string, rev int64, lease int64, value []byte) (StoreRecord, e
 	rowEntity.Properties = map[string]interface{}{
 		consts.RevisionFieldName:       rowRev,
 		consts.CreateRevisionFieldName: rowRev,
-		consts.LeaseFieldName:          lease,
+		consts.LeaseFieldName:          fmt.Sprintf("%v", lease),
 		consts.FlagsFieldName:          consts.CurrentFlag,
 	}
 
@@ -81,7 +81,7 @@ func NewRecord(key string, rev int64, lease int64, value []byte) (StoreRecord, e
 	newRecord.rowEntity = rowEntity
 
 	// the count does not include row entity data parts
-	newRecord.dataEntities = dataEntitesFromParts(validKey, rowRev, parts)
+	newRecord.dataEntities = dataEntitesFromParts(validKey, rowRev, parts, lease)
 	rowEntity.Properties[consts.DataPartsCountFieldName] = fmt.Sprintf("%v", len(newRecord.dataEntities))
 	return newRecord, nil
 }
@@ -229,6 +229,9 @@ func NewForUpdate(rev int64, newVal []byte, old StoreRecord, lease int64) (Store
 	// 4- set as an updated record
 	newRecord.RowEntity().Properties[consts.FlagsFieldName] = consts.UpdatedFlag
 
+	// 5- add lease
+	newRecord.RowEntity().Properties[consts.LeaseFieldName] = fmt.Sprintf("%v", lease)
+
 	// now modify the row entity old for
 	oldsr := old.(*storeRecord)
 	entity := &storage.Entity{}
@@ -249,7 +252,7 @@ func NewForUpdate(rev int64, newVal []byte, old StoreRecord, lease int64) (Store
 
 // takes parts and create entities for them
 // starts with consts.DataFieldsPerRow .. end of parts
-func dataEntitesFromParts(validKey string, validRev string, parts [][]byte) []*storage.Entity {
+func dataEntitesFromParts(validKey string, validRev string, parts [][]byte, lease int64) []*storage.Entity {
 	capacity := (len(parts) - consts.DataFieldsPerRow) / consts.DataFieldsPerRow
 	if capacity == 0 {
 		capacity = 1
@@ -264,7 +267,7 @@ func dataEntitesFromParts(validKey string, validRev string, parts [][]byte) []*s
 		e.PartitionKey = validKey
 		e.RowKey = revForDataRow(validRev, fmt.Sprintf("%v", idx))
 		e.Properties[consts.RevisionFieldName] = validRev
-
+		e.Properties[consts.LeaseFieldName] = fmt.Sprintf("%v", lease)
 		setEntityAsData(e)
 		return e
 	}
@@ -408,8 +411,9 @@ func (sr *storeRecord) ModRevision() int64 {
 
 }
 func (sr *storeRecord) Lease() int64 {
-	if val, ok := sr.rowEntity.Properties[consts.LeaseFieldName]; ok {
-		return val.(int64)
+	if leaseString, ok := sr.rowEntity.Properties[consts.LeaseFieldName]; ok {
+		n, _ := strconv.ParseInt(leaseString.(string), 10, 64)
+		return n
 	}
 	return 0
 }

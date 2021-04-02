@@ -33,6 +33,7 @@ const (
 	EntityTypeData           = "DD"
 	EntityTypeEvent          = "EE"
 	EntityTypeLeaderElection = "LE"
+	EntityTypeLease          = "LS"
 
 	EventEntityRowKeyFormat = "event-%s-%s"
 	DataEntityRowKeyFormat  = "data-%v-%s"
@@ -72,9 +73,18 @@ func init() {
 	}
 }
 
+// leader election
 const (
 	LeaderElectPartitionName = "__LEADER_ELECT__"
 	// fields
 	LeaderElectOwnerNameFieldName = "ow"
 	LeaderElectExpiresOnFieldName = "eo"
+)
+
+// lease
+const (
+	LeasePartitionName       = "__LEASE__"
+	LeaseGrantedTTLFieldName = "lgttl"
+	LeaseExpiresOnFieldName  = "lex"
+	LeaseStatusFieldName     = "lstu"
 )

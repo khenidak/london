@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/khenidak/london/pkg/backend"
 	"github.com/khenidak/london/pkg/config"
+	"github.com/khenidak/london/pkg/types"
 )
 
 const (
@@ -36,14 +38,22 @@ type frontend struct {
 	config *config.Config
 	be     backend.Backend
 
+	leaseLock  sync.Mutex
 	watchCount int64
+	leases     map[int64]*types.Lease
 }
 
 func NewFrontend(config *config.Config, be backend.Backend) (Frontend, error) {
-	return &frontend{
+	fe := &frontend{
 		config: config,
 		be:     be,
-	}, nil
+		leases: make(map[int64]*types.Lease),
+	}
+	// start lease mgmt loop
+	go fe.leaseMangementLoop()
+
+	return fe, nil
+
 }
 
 func (fe *frontend) StartListening() error {
@@ -102,7 +112,8 @@ func (fe *frontend) StartListening() error {
 
 	go func() {
 		// stop
-		<-fe.config.Runtime.Stop
+		doneCh := fe.config.Runtime.Context.Done()
+		<-doneCh
 		klogv2.Infof("etcd grpc server received a stop sginal.. stopping")
 		grpcServer.Stop()
 		_ = listener.Close()
