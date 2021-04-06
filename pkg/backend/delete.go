@@ -10,6 +10,7 @@ import (
 	"github.com/khenidak/london/pkg/backend/consts"
 	filterutils "github.com/khenidak/london/pkg/backend/filter"
 	"github.com/khenidak/london/pkg/backend/storerecord"
+	"github.com/khenidak/london/pkg/backend/utils"
 	"github.com/khenidak/london/pkg/types"
 )
 
@@ -44,7 +45,7 @@ func (s *store) Delete(key string, revision int64) (types.Record, error) {
 		Filter: f.Generate(),
 	}
 
-	res, err := s.t.QueryEntities(consts.DefaultTimeout, storage.FullMetadata, o)
+	res, err := utils.SafeExecuteQuery(s.t, consts.DefaultTimeout, storage.FullMetadata, o)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +87,7 @@ func (s *store) Delete(key string, revision int64) (types.Record, error) {
 	event.Table = s.t
 	batch.InsertEntity(event)
 
-	err = batch.ExecuteBatch()
+	err = utils.SafeExecuteBatch(batch)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +145,7 @@ func (s *store) DeleteAllBeforeRev(rev int64) (int64, error) {
 		// batch (and should be less than 4MB azure's
 		// max. because we add no values)
 		totalReq = totalReq + 1
-		err := batch.ExecuteBatch()
+		err := utils.SafeExecuteBatch(batch)
 		if err != nil {
 			return err
 		}
@@ -163,7 +164,7 @@ func (s *store) DeleteAllBeforeRev(rev int64) (int64, error) {
 	o := &storage.QueryOptions{
 		Filter: f.Generate(),
 	}
-	res, lastErr = s.t.QueryEntities(consts.DefaultTimeout, storage.NoMetadata, o)
+	res, lastErr = utils.SafeExecuteQuery(s.t, consts.DefaultTimeout, storage.NoMetadata, o)
 	if lastErr != nil {
 		return 0, lastErr
 	}

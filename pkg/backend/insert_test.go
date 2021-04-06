@@ -11,6 +11,7 @@ import (
 	"github.com/khenidak/london/pkg/backend/consts"
 	storageerrors "github.com/khenidak/london/pkg/backend/storageerrors"
 	"github.com/khenidak/london/pkg/backend/storerecord"
+	"github.com/khenidak/london/pkg/backend/utils"
 	"github.com/khenidak/london/pkg/config"
 
 	basictestutils "github.com/khenidak/london/test/utils/basic"
@@ -46,7 +47,7 @@ func GetEntitiesForKeyRev(t *testing.T, c *config.Config, key string, rev int64)
 	t.Logf("filter: %v", o.Filter)
 
 	table := c.Runtime.StorageTable
-	res, err := table.QueryEntities(consts.DefaultTimeout, storage.MinimalMetadata, o)
+	res, err := utils.SafeExecuteQuery(table, consts.DefaultTimeout, storage.MinimalMetadata, o)
 	if err != nil {
 		t.Fatalf("failed to query table with err:%v", err)
 	}

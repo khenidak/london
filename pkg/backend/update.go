@@ -8,6 +8,7 @@ import (
 	"github.com/khenidak/london/pkg/backend/consts"
 	filterutils "github.com/khenidak/london/pkg/backend/filter"
 	"github.com/khenidak/london/pkg/backend/storerecord"
+	"github.com/khenidak/london/pkg/backend/utils"
 	"github.com/khenidak/london/pkg/types"
 )
 
@@ -39,7 +40,7 @@ func (s *store) Update(key string, val []byte, revision int64, lease int64) (typ
 		Filter: f.Generate(),
 	}
 
-	res, err := s.t.QueryEntities(consts.DefaultTimeout, storage.FullMetadata, o)
+	res, err := utils.SafeExecuteQuery(s.t, consts.DefaultTimeout, storage.FullMetadata, o)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +93,7 @@ func (s *store) Update(key string, val []byte, revision int64, lease int64) (typ
 	event.Table = s.t
 	batch.InsertEntity(event)
 
-	err = batch.ExecuteBatch()
+	err = utils.SafeExecuteBatch(batch)
 	if err != nil {
 		return nil, err
 	}

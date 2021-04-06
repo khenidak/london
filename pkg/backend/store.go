@@ -10,6 +10,7 @@ import (
 
 	"github.com/khenidak/london/pkg/backend/consts"
 	"github.com/khenidak/london/pkg/backend/revision"
+	"github.com/khenidak/london/pkg/backend/utils"
 	"github.com/khenidak/london/pkg/config"
 	"github.com/khenidak/london/pkg/types"
 )
@@ -38,6 +39,7 @@ import (
 
 	*** all entities maintain a well known field for revision
 */
+
 type Backend interface {
 	Insert(key string, value []byte, lease int64) (int64, error)
 	Get(key string, revision int64) (types.Record, int64, error)
@@ -107,5 +109,5 @@ func (s *store) ensureStore() error {
 	b.Table = s.t
 
 	b.InsertOrMergeEntity(e, true)
-	return b.ExecuteBatch()
+	return utils.SafeExecuteBatch(b)
 }
