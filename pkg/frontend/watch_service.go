@@ -262,6 +262,12 @@ func (fe *frontend) recordToEvent(record types.Record) (*mvccpb.Event, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// this will happen if old has been compacted out of the db
+	if oldRecord == nil {
+		return e, nil
+	}
+
 	e.PrevKv = types.RecordToKV(oldRecord)
 	return e, nil
 }
