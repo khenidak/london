@@ -3,10 +3,12 @@ package config
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
 )
@@ -215,6 +217,20 @@ func (c *Config) InitRuntime() error {
 	c.Runtime.StorageTable = c.Runtime.TableClient.GetTableReference(c.TableName)
 	c.Runtime.RevisionTableClient = c.Runtime.RevisionStorageClient.GetTableService()
 	c.Runtime.RevisionStorageTable = c.Runtime.RevisionTableClient.GetTableReference(c.RevisionTableName)
+
+	// optimize http Client
+	defaultRoundTripper := http.DefaultTransport
+	transport := defaultRoundTripper.(*http.Transport)
+	// we favor memory consumption over cycling
+	// connections. roughly the same # of connections
+	// created by all api-server goroutine.
+	transport.MaxIdleConns = 35000
+	transport.MaxIdleConnsPerHost = 35000
+	transport.IdleConnTimeout = time.Second * 0
+	transport.ForceAttemptHTTP2 = false
+
+	c.Runtime.StorageClient.HTTPClient.Transport = transport
+	c.Runtime.RevisionStorageClient.HTTPClient.Transport = transport
 
 	// wire up runtime stop and context
 	c.Runtime.Context = context.Background()
