@@ -62,6 +62,8 @@ unit-tests: get-kubernetes ## runs unit test
 	@LONDON_TESTING_VARS=$(varFilePath) go test $(mkfile_dirpath)/pkg/backend/revision  -count=1 $(ADD_TEST_ARGS) || exit 1
 	@echo "** running unit test in @ $(mkfile_dirpath)/pkg/backend/filter"
 	@LONDON_TESTING_VARS=$(varFilePath) go test $(mkfile_dirpath)/pkg/backend/filter   -count=1 $(ADD_TEST_ARGS) || exit 1
+	@echo "** running unit test in @ $(mkfile_dirpath)/pkg/backend/retryable"
+	@LONDON_TESTING_VARS=$(varFilePath) go test $(mkfile_dirpath)/pkg/backend/retryable   -count=1 $(ADD_TEST_ARGS) || exit 1
 	@echo "** running unit test in @ $(mkfile_dirpath)/pkg/backend"
 	@LONDON_TESTING_VARS=$(varFilePath) go test $(mkfile_dirpath)/pkg/backend -count=1  $(ADD_TEST_ARGS) || exit 1
 
