@@ -99,6 +99,9 @@ func (l *le) renewTerm(duration time.Duration) (bool, error) {
 		return false, err
 	}
 
+	// there is a bit of shared code between the two cases which can be reduced
+	// TODO
+
 	// case one: current holder is us
 	currentHolder := l.e.Properties[consts.LeaderElectOwnerNameFieldName].(string)
 	if currentHolder == l.myName {
@@ -147,8 +150,6 @@ func (l *le) renewTerm(duration time.Duration) (bool, error) {
 		batch := l.s.t.NewBatch()
 		batch.MergeEntity(l.e)
 
-		// we really need to workout errors
-		// TODO
 		err := batch.ExecuteBatch()
 		if err != nil {
 			if storageerrors.IsConflictError(err) {

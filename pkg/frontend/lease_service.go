@@ -24,7 +24,7 @@ func (fe *frontend) leaseMangementLoop() {
 	if err != nil {
 		// let us generate a random name
 		myName := fmt.Sprintf("%v", time.Now().UTC().UnixNano())
-		klogv2.Infof("lease manager: failed to get hostname with err:%v and used a random generated name instead:%v - process restart will yeild in lease loss", err, myName)
+		klogv2.Infof("lease manager: failed to get hostname with err:%v and used a random generated name instead:%v - process restart will yield in lease loss", err, myName)
 	}
 	var ticker *time.Ticker
 	if fe.config.LeaseMgmtRunInterval != 0 {
@@ -46,13 +46,13 @@ func (fe *frontend) leaseMangementLoop() {
 				leader = fe.be.NewLeaderElection(leaseManagementElectionName, myName)
 				elected, err := leader.Elect(time.Second * 10)
 				if err != nil {
-					klogv2.Infof("lease manager:encountered an error trying to elect leader:%v .. will retry in 10s")
+					klogv2.Infof("lease manager:encountered an error trying to elect leader:%v err:%v .. will retry in 10s", err)
 					continue
 				}
 
 				if !elected {
 					holder, _ := leader.CurrentHolder()
-					klogv2.Infof("lease manager: failed to elect leader. current leader is:%v.. will try again in 15s", holder)
+					klogv2.Infof("lease manager: failed to elect leader. current leader is:%v.. will try again in 10s", holder)
 					continue
 				}
 				// we are leader for at least 10s

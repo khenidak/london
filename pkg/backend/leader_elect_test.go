@@ -34,7 +34,7 @@ func TestLeaderElection(t *testing.T) {
 		t.Fatalf("failed to elect self as leader with err:%v", err)
 	}
 	if !ok {
-		t.Fatalf("expected election to successed but it didn't")
+		t.Fatalf("expected election to succeed but it didn't")
 	}
 
 	holderName, err := election.CurrentHolder()

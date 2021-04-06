@@ -40,7 +40,7 @@ func (s *store) GetLease(id int64) (*types.Lease, error) {
 func (s *store) UpdateLease(lease *types.Lease) error {
 	entity, err := s.getLeaseEntity(lease.ID)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	// set status if it is *not* marked as unknown
