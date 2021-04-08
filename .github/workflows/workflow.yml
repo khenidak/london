@@ -79,11 +79,11 @@ jobs:
 
       - name: Unit test
         run: |
-          make unit-tests
+          ADD_TEST_ARGS="-v" make unit-tests
 
       - name: Integration test
         run: |
-          make integration-tests
+          ADD_TEST_ARGS="-v" make integration-tests
 
   test-v1200:
     runs-on: ubuntu-latest
@@ -119,11 +119,11 @@ jobs:
 
       - name: Unit test
         run: |
-          make unit-tests
+          ADD_TEST_ARGS="-v" make unit-tests
 
       - name: Integration test
         run: |
-          make integration-tests
+          ADD_TEST_ARGS="-v" make integration-tests
 
   revision_table_test:
     runs-on: ubuntu-latest
@@ -162,8 +162,8 @@ jobs:
 
       - name: Unit test
         run: |
-          make unit-tests
+          ADD_TEST_ARGS="-v" make unit-tests
 
       - name: Integration test
         run: |
-          make integration-tests
+          ADD_TEST_ARGS="-v" make integration-tests
