@@ -55,7 +55,7 @@ integration-tests: get-kubernetes ## runs integeration test
 	@echo "** running integration test @ $(mkfile_dirpath)/test/integration"
 	@LONDON_TESTING_VARS=$(varFilePath) go test $(mkfile_dirpath)/test/integration  -count=1 $(ADD_TEST_ARGS)
 
-unit-tests: get-kubernetes ## runs unit test
+unit-tests: ## runs unit tests
 	@echo "** running unit test in @ $(mkfile_dirpath)/pkg/backend/storerecord"
 	@LONDON_TESTING_VARS=$(varFilePath) go test $(mkfile_dirpath)/pkg/backend/storerecord   -count=1 $(ADD_TEST_ARGS)  || exit 1
 	@echo "** running unit test in @ $(mkfile_dirpath)/pkg/backend/revision"
