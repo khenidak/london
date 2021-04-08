@@ -21,6 +21,10 @@ jobs:
         run: |
           make get-kubernetes KUBERNETES_VERSION=v1.18.0
 
+      - name: Download go modules
+        run: |
+          go mod download
+
       - name: Generate test vars file
         run: |
           echo -e 'ACCOUNT_NAME '${ACCOUNT_NAME}'\nACCOUNT_KEY '${ACCOUNT_KEY}'\nTABLE_NAME '${TABLE_NAME//./}'\nLISTEN_ADDRESS '${LISTEN_ADDRESS}'\nUSE_TLS\nSERVER_CERT_FILE_PATH '${SERVER_CERT_FILE_PATH}'\nSERVER_KEY_FILE_PATH '${SERVER_KEY_FILE_PATH}'\nCLIENT_TRUSTED_CA_FILE_PATH '${CLIENT_TRUSTED_CA_FILE_PATH}'\nCLIENT_CERT_FILE_PATH '${CLIENT_CERT_FILE_PATH}'\nCLIENT_KEY_FILE_PATH '${CLIENT_KEY_FILE_PATH}'\nSERVER_TRUSTED_CA_FILE_PATH '${SERVER_TRUSTED_CA_FILE_PATH}'\nREVISION_ACCOUNT_NAME '${REVISION_ACCOUNT_NAME}'\nREVISION_ACCOUNT_KEY '${REVISION_ACCOUNT_KEY}'\nREVISION_TABLE_NAME '${REVISION_TABLE_NAME//./}'' | sudo tee --append hack/testing_vars  > /dev/null
@@ -60,6 +64,10 @@ jobs:
       - name: Get Kubernetes release
         run: |
           make get-kubernetes KUBERNETES_VERSION=v1.19.0
+
+      - name: Download go modules
+        run: |
+          go mod download
 
       - name: Generate test vars file
         run: |
@@ -101,6 +109,10 @@ jobs:
         run: |
           make get-kubernetes KUBERNETES_VERSION=v1.20.0
 
+      - name: Download go modules
+        run: |
+          go mod download
+
       - name: Generate test vars file
         run: |
           echo -e 'ACCOUNT_NAME '${ACCOUNT_NAME}'\nACCOUNT_KEY '${ACCOUNT_KEY}'\nTABLE_NAME '${TABLE_NAME//./}'\nLISTEN_ADDRESS '${LISTEN_ADDRESS}'\nUSE_TLS\nSERVER_CERT_FILE_PATH '${SERVER_CERT_FILE_PATH}'\nSERVER_KEY_FILE_PATH '${SERVER_KEY_FILE_PATH}'\nCLIENT_TRUSTED_CA_FILE_PATH '${CLIENT_TRUSTED_CA_FILE_PATH}'\nCLIENT_CERT_FILE_PATH '${CLIENT_CERT_FILE_PATH}'\nCLIENT_KEY_FILE_PATH '${CLIENT_KEY_FILE_PATH}'\nSERVER_TRUSTED_CA_FILE_PATH '${SERVER_TRUSTED_CA_FILE_PATH}'\nREVISION_ACCOUNT_NAME '${REVISION_ACCOUNT_NAME}'\nREVISION_ACCOUNT_KEY '${REVISION_ACCOUNT_KEY}'\nREVISION_TABLE_NAME '${REVISION_TABLE_NAME//./}'' | sudo tee --append hack/testing_vars  > /dev/null
@@ -137,6 +149,14 @@ jobs:
       - name: Checkout code into the Go module directory
         uses: actions/checkout@v2
 
+      - name: Get Kubernetes release
+        run: |
+          make get-kubernetes
+
+      - name: Download go modules
+        run: |
+          go mod download
+
       - name: Generate test vars file
         run: |
           echo -e 'ACCOUNT_NAME '${ACCOUNT_NAME}'\nACCOUNT_KEY '${ACCOUNT_KEY}'\nTABLE_NAME '${TABLE_NAME//./}'\nLISTEN_ADDRESS '${LISTEN_ADDRESS}'\nUSE_TLS\nSERVER_CERT_FILE_PATH '${SERVER_CERT_FILE_PATH}'\nSERVER_KEY_FILE_PATH '${SERVER_KEY_FILE_PATH}'\nCLIENT_TRUSTED_CA_FILE_PATH '${CLIENT_TRUSTED_CA_FILE_PATH}'\nCLIENT_CERT_FILE_PATH '${CLIENT_CERT_FILE_PATH}'\nCLIENT_KEY_FILE_PATH '${CLIENT_KEY_FILE_PATH}'\nSERVER_TRUSTED_CA_FILE_PATH '${SERVER_TRUSTED_CA_FILE_PATH}'\nREVISION_ACCOUNT_NAME '${REVISION_ACCOUNT_NAME}'\nREVISION_ACCOUNT_KEY '${REVISION_ACCOUNT_KEY}'\nREVISION_TABLE_NAME '${REVISION_TABLE_NAME//./}'\nUSE_REVISION_TABLE' | sudo tee --append hack/testing_vars  > /dev/null
@@ -155,10 +175,6 @@ jobs:
           REVISION_ACCOUNT_NAME: ${{ secrets.ACCOUNT_NAME }}
           REVISION_ACCOUNT_KEY: ${{ secrets.ACCOUNT_KEY }}
           REVISION_TABLE_NAME: v1120rev
-
-      - name: Get Kubernetes release
-        run: |
-          make get-kubernetes
 
       - name: Unit test
         run: |
