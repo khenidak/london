@@ -11,6 +11,7 @@ import (
 
 	"github.com/khenidak/london/pkg/backend/consts"
 	storageerrors "github.com/khenidak/london/pkg/backend/storageerrors"
+	"github.com/khenidak/london/pkg/backend/utils"
 )
 
 type Revisioner interface {
@@ -26,7 +27,7 @@ type rev struct {
 	e *storage.Entity
 }
 
-func NewRevisioner(t *storage.Table) (Revisioner,error) {
+func NewRevisioner(t *storage.Table) (Revisioner, error) {
 	r := &rev{
 		t: t,
 	}
@@ -63,7 +64,7 @@ func (r *rev) ensureStore() error {
 	b.Table = r.t
 
 	b.InsertOrMergeEntity(e, true)
-	return b.ExecuteBatch()
+	return utils.SafeExecuteBatch(b)
 }
 
 func (r *rev) Current() (int64, error) {
@@ -144,7 +145,7 @@ func (r *rev) newRev() (*storage.Entity, error) {
 	entity.Properties[consts.RevisionerProperty] = zero
 	entity.OdataEtag = "abc"
 	b.InsertEntity(entity)
-	err := b.ExecuteBatch()
+	err := utils.SafeExecuteBatch(b)
 	if err != nil {
 		return nil, err
 	}
@@ -153,8 +154,9 @@ func (r *rev) newRev() (*storage.Entity, error) {
 }
 
 func (r *rev) getRev() (*storage.Entity, error) {
+	// TODO wrap with retry
 	entity := r.t.GetEntityReference(consts.RevisionerPartitionKey, consts.RevisionerRowKey)
-	err := entity.Get(consts.DefaultTimeout, storage.FullMetadata, &storage.GetEntityOptions{Select: []string{consts.RevisionerProperty}})
+	err := utils.SafeExecuteEntityGet(entity, consts.DefaultTimeout, storage.FullMetadata, &storage.GetEntityOptions{Select: []string{consts.RevisionerProperty}})
 
 	if err != nil {
 		return nil, err
@@ -166,5 +168,5 @@ func (r *rev) getRev() (*storage.Entity, error) {
 func (r *rev) updateRev() error {
 	b := r.t.NewBatch()
 	b.InsertOrMergeEntity(r.e, false)
-	return b.ExecuteBatch()
+	return utils.SafeExecuteBatch(b)
 }

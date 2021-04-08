@@ -5,6 +5,7 @@ import (
 
 	storageerrors "github.com/khenidak/london/pkg/backend/storageerrors"
 	"github.com/khenidak/london/pkg/backend/storerecord"
+	"github.com/khenidak/london/pkg/backend/utils"
 )
 
 // Insert perfroms create. by creating a new record and marking it as current
@@ -41,7 +42,8 @@ func (s *store) Insert(key string, value []byte, lease int64) (int64, error) {
 	event.Table = s.t
 	batch.InsertEntity(event)
 
-	err = batch.ExecuteBatch()
+	err = utils.SafeExecuteBatch(batch)
+
 	if storageerrors.IsEntityAlreadyExists(err) {
 		// get current entity and return rev
 		// Kubernetes does not really use that rev

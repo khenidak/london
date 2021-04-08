@@ -9,6 +9,7 @@ import (
 	"github.com/khenidak/london/pkg/backend/consts"
 	filterutils "github.com/khenidak/london/pkg/backend/filter"
 	"github.com/khenidak/london/pkg/backend/storerecord"
+	"github.com/khenidak/london/pkg/backend/utils"
 	"github.com/khenidak/london/pkg/types"
 )
 
@@ -69,7 +70,7 @@ func (s *store) execQuery(o *storage.QueryOptions,
 	bookKeepingFunc entitiesBookKeepingFn,
 	ToRecordsFunc entitiesToRecordsFn) ([]types.Record, error) {
 
-	res, err := s.t.QueryEntities(consts.DefaultTimeout, metadataLevel, o)
+	res, err := utils.SafeExecuteQuery(s.t, consts.DefaultTimeout, metadataLevel, o)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +81,7 @@ func (s *store) execQuery(o *storage.QueryOptions,
 			break
 		}
 
-		res, err = res.NextResults(nil) // TODO: <-- is this correct??
+		res, err = utils.SafeExecuteNextResult(res, nil) // TODO: <-- is this correct??(nil options)
 		if err != nil {
 			return nil, err
 		}

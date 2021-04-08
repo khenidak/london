@@ -11,6 +11,7 @@ import (
 	"github.com/khenidak/london/pkg/backend/consts"
 	filterutils "github.com/khenidak/london/pkg/backend/filter"
 	"github.com/khenidak/london/pkg/backend/storerecord"
+	"github.com/khenidak/london/pkg/backend/utils"
 	"github.com/khenidak/london/pkg/types"
 )
 
@@ -44,7 +45,7 @@ func (s *store) Get(key string, revision int64) (types.Record, int64, error) {
 		Filter: f.Generate(),
 	}
 
-	res, err := s.t.QueryEntities(consts.DefaultTimeout, storage.MinimalMetadata, o)
+	res, err := utils.SafeExecuteQuery(s.t, consts.DefaultTimeout, storage.MinimalMetadata, o)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -83,7 +84,7 @@ func (s *store) Get(key string, revision int64) (types.Record, int64, error) {
 
 	o.Filter = dataFilter.Generate()
 	klogv2.Infof("GET-DATA-ROWS-FOR-LATEST:%v", o.Filter)
-	dataRes, err := s.t.QueryEntities(consts.DefaultTimeout, storage.MinimalMetadata, o)
+	dataRes, err := utils.SafeExecuteQuery(s.t, consts.DefaultTimeout, storage.MinimalMetadata, o)
 	if err != nil {
 		return nil, currentRev, err
 	}
