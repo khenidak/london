@@ -48,7 +48,7 @@ func CreateTestApp(c *config.Config, t testing.TB) (stop func()) {
 		//TODO. Clean exist for app
 		c.Runtime.Stop <- syscall.SIGINT
 		c.Runtime.Stop <- syscall.SIGTERM
-		//t.Logf("test app - stop signal sent")
+		t.Logf("test app - stop signal sent")
 		<-c.Runtime.Done
 	}
 }

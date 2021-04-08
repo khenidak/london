@@ -37,7 +37,9 @@ type TLSConfig struct {
 }
 
 type Runtime struct {
-	Done                  chan struct{}
+	Done chan struct{}
+	// Important: don't interact with this channel
+	// except in tests to close to the entire runtime
 	Stop                  chan os.Signal
 	Context               context.Context
 	StorageClient         storage.Client
@@ -72,6 +74,12 @@ type Config struct {
 	// TODO MSI etc
 
 	Runtime Runtime
+
+	// Lease Mgmt run interval is for testing reasons
+	// only. it is not exposed a config knop
+	// we set this to short interval for testing
+	// to short circut the wait time
+	LeaseMgmtRunInterval int
 }
 
 func NewConfig() *Config {
@@ -243,8 +251,8 @@ func (c *Config) InitRuntime() error {
 
 	go func() {
 		<-c.Runtime.Stop
+		close(c.Runtime.Stop)
 		cancel()
 	}()
-	// TODO would be great if we have a Done channel to graceful wait for things to declare done
 	return nil
 }

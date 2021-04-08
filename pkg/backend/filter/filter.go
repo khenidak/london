@@ -178,6 +178,33 @@ func ExcludeSysRecords() Filter {
 func DeletedKeysOnly() Filter {
 	return Equal(consts.FlagsFieldName, consts.DeletedFlag)
 }
+
+func LeaderElectionEntity(electionName string) Filter {
+	return CombineAnd(
+		Equal(consts.PartitionKeyFieldName, consts.LeaderElectPartitionName),
+		Equal(consts.RowKeyFieldName, electionName),
+		Equal(consts.EntityTypeFieldName, consts.EntityTypeLeaderElection),
+	)
+}
+
+func LeaseId(id string) Filter {
+	return CombineAnd(
+		Equal(consts.PartitionKeyFieldName, consts.LeasePartitionName),
+		Equal(consts.EntityTypeFieldName, consts.EntityTypeLease),
+		Equal(consts.RowKeyFieldName, id),
+	)
+}
+
+func Leases() Filter {
+	return CombineAnd(
+		Equal(consts.PartitionKeyFieldName, consts.LeasePartitionName),
+		Equal(consts.EntityTypeFieldName, consts.EntityTypeLease),
+	)
+}
+
+func WithLease(id string) Filter {
+	return Equal(consts.LeaseFieldName, id)
+}
 func prefixEndFromKey(key string) (start string, end string) {
 	last := key[len(key)-1]
 	last = last + 1

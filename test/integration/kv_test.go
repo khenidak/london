@@ -3,26 +3,14 @@ package integration
 import (
 	"context"
 	"fmt"
-	"os"
 	"testing"
 
 	"go.etcd.io/etcd/clientv3"
-	klogv2 "k8s.io/klog/v2"
 
 	testutils "github.com/khenidak/london/test/utils"
 	basictestutils "github.com/khenidak/london/test/utils/basic"
 )
 
-func TestMain(m *testing.M) {
-	/*file, err := os.Create("integration.txt")
-	if err != nil {
-		return
-	}
-	defer file.Close()
-	klogv2.SetOutput(file)*/
-	klogv2.LogToStderr(false)
-	os.Exit(m.Run())
-}
 func BenchmarkPut(b *testing.B) {
 	client, stop := getClient(b, false)
 	defer stop()

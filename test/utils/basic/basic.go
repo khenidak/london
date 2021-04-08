@@ -75,6 +75,8 @@ func MakeTestConfig(t testing.TB, clearTable bool) *config.Config {
 		t.Fatalf("failed to init runtime with err:%v", err)
 	}
 
+	// set lease mgmt to a short interval
+	c.LeaseMgmtRunInterval = 1
 	_, dontRecreate := configVals["DO_NOT_RECREATE_TABLE"]
 	if dontRecreate {
 		return c

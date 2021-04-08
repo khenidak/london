@@ -29,9 +29,11 @@ const (
 	UpdatedFlag = "U"
 	DeletedFlag = "D"
 
-	EntityTypeRow   = "RR"
-	EntityTypeData  = "DD"
-	EntityTypeEvent = "EE"
+	EntityTypeRow            = "RR"
+	EntityTypeData           = "DD"
+	EntityTypeEvent          = "EE"
+	EntityTypeLeaderElection = "LE"
+	EntityTypeLease          = "LS"
 
 	EventEntityRowKeyFormat = "event-%s-%s"
 	DataEntityRowKeyFormat  = "data-%v-%s"
@@ -70,3 +72,19 @@ func init() {
 		DataField9,
 	}
 }
+
+// leader election
+const (
+	LeaderElectPartitionName = "__LEADER_ELECT__"
+	// fields
+	LeaderElectOwnerNameFieldName = "ow"
+	LeaderElectExpiresOnFieldName = "eo"
+)
+
+// lease
+const (
+	LeasePartitionName       = "__LEASE__"
+	LeaseGrantedTTLFieldName = "lgttl"
+	LeaseExpiresOnFieldName  = "lex"
+	LeaseStatusFieldName     = "lstu"
+)
