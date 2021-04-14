@@ -46,7 +46,8 @@ func (fe *frontend) Watch(ws etcdserverpb.Watch_WatchServer) error {
 		defer watchServerLock.Unlock()
 
 		// create new Id for this watch
-		newWatchId := fe.watchCount + 1
+		fe.watchCount = fe.watchCount + 1
+		newWatchId := fe.watchCount
 		watcherCtx, cancel := context.WithCancel(context.Background())
 		w := &watcher{
 			key:            key,
