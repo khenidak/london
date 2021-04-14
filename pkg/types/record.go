@@ -21,6 +21,7 @@ func RecordToKV(record Record) *mvccpb.KeyValue {
 	return &mvccpb.KeyValue{
 		CreateRevision: record.CreateRevision(),
 		ModRevision:    record.ModRevision(),
+		Version:        record.ModRevision(), // does not exactly meet spec.
 		Key:            record.Key(),
 		Value:          record.Value(),
 		Lease:          record.Lease(),

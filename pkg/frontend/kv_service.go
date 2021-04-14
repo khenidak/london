@@ -15,22 +15,20 @@ import (
 )
 
 func (fe *frontend) Put(ctx context.Context, r *etcdserverpb.PutRequest) (*etcdserverpb.PutResponse, error) {
-
-	klogv2.Infof("TXN PUT: %v", string(r.Key))
-
 	if r.IgnoreLease || r.IgnoreValue || r.PrevKv {
 		return nil, createUnsupportedError("put update")
 	}
 	// this is an insert operation
-	rev, err := fe.be.Insert(string(r.Key), r.Value, r.Lease)
+	insertedRecord, err := fe.be.Insert(string(r.Key), r.Value, r.Lease)
 	if err != nil {
 		return nil, err
 	}
 
 	putResponse := &etcdserverpb.PutResponse{}
-	putResponse.Header = createResponseHeader(rev)
+	putResponse.Header = createResponseHeader(insertedRecord.ModRevision())
 	putResponse.PrevKv = nil
 
+	fe.lm.notifyInserted(insertedRecord)
 	return putResponse, nil
 }
 
@@ -42,11 +40,9 @@ func (fe *frontend) Range(ctx context.Context, r *etcdserverpb.RangeRequest) (*e
 
 	if len(r.RangeEnd) == 0 {
 		// treat as Get
-		klogv2.Infof("RANGE-GET: %v", string(r.Key))
 		return fe.rangeGet(ctx, r)
 	}
 
-	klogv2.Infof("RANGE-LIST: %v", string(r.Key))
 	return fe.rangeList(ctx, r)
 }
 func (fe *frontend) rangeList(ctx context.Context, r *etcdserverpb.RangeRequest) (*etcdserverpb.RangeResponse, error) {
@@ -76,6 +72,7 @@ func (fe *frontend) rangeList(ctx context.Context, r *etcdserverpb.RangeRequest)
 			return nil, createUnsupportedError("get all keys with revision is not supported")
 		}
 		// list all
+		klogv2.Infof("FE: EXPENSIVE CALL - ListAllCurrent() ")
 		rev, records, err := fe.be.ListAllCurrent()
 		if err != nil {
 			return nil, err
@@ -84,7 +81,8 @@ func (fe *frontend) rangeList(ctx context.Context, r *etcdserverpb.RangeRequest)
 	}
 
 	keyWithSuffix := suffixedKey(string(r.Key))
-	rev, records, err := fe.be.ListForPrefix(keyWithSuffix)
+	rev, _ := fe.be.CurrentRevision()
+	records, err := fe.lm.list(keyWithSuffix)
 	if err != nil {
 		return nil, err
 	}
@@ -96,32 +94,35 @@ func (fe *frontend) rangeGet(ctx context.Context, r *etcdserverpb.RangeRequest) 
 	if r.Limit != 0 {
 		return nil, createUnsupportedError("range/get with limit !=0")
 	}
-	record, rev, err := fe.be.Get(string(r.Key), r.Revision)
+
+	createResponse := func(record types.Record) *etcdserverpb.RangeResponse {
+		response := &etcdserverpb.RangeResponse{}
+		if record == nil {
+			// non existent results
+			rev, _ := fe.be.CurrentRevision()
+			response.Header = createResponseHeader(rev)
+			response.Count = 0
+			return response
+		}
+		response.Header = createResponseHeader(record.ModRevision())
+		response.Count = 1
+		response.Kvs = []*mvccpb.KeyValue{types.RecordToKV(record)}
+
+		return response
+	}
+
+	// try to find in cache
+	if cachedRecord := fe.lm.getRecord(string(r.Key)); cachedRecord != nil {
+		return createResponse(cachedRecord), nil
+	}
+
+	// get from from store
+	record, _, err := fe.be.Get(string(r.Key), r.Revision)
 	if err != nil { // TODO: errCompact if revision is used
 		return nil, err
 	}
 
-	response := &etcdserverpb.RangeResponse{}
-	if record == nil {
-		// non existent results
-		response.Header = createResponseHeader(0)
-		response.Count = 0
-		return response, nil
-	}
-	/*
-	   should be ok, since latest only gets current
-	   	if record.IsDeleted() && r.Revision == 0 {
-	   		// looking for current which does not exist
-	   		response.Header = createResponseHeader(0)
-	   		response.Count = 0
-	   		return response, nil
-	   	}
-	*/
-	response.Header = createResponseHeader(rev)
-	response.Count = 1
-	response.Kvs = []*mvccpb.KeyValue{types.RecordToKV(record)}
-
-	return response, nil
+	return createResponse(record), nil
 }
 
 func (fe *frontend) DeleteRange(ctx context.Context, r *etcdserverpb.DeleteRangeRequest) (*etcdserverpb.DeleteRangeResponse, error) {
@@ -143,43 +144,43 @@ func (fe *frontend) Txn(ctx context.Context, r *etcdserverpb.TxnRequest) (*etcds
 	// update
 	if shouldUpdate(r) {
 		rev, key, val, lease := getUpdateDetails(r)
-		return fe.txtUpdate(ctx, rev, key, val, lease)
+		return fe.txnUpdate(ctx, rev, key, val, lease)
 	}
 
 	return nil, createUnsupportedError("unsupported range request")
 }
 
-func (fe *frontend) txtUpdate(ctx context.Context, rev int64, key string, val []byte, lease int64) (*etcdserverpb.TxnResponse, error) {
-
+func (fe *frontend) txnUpdate(ctx context.Context, rev int64, key string, val []byte, lease int64) (*etcdserverpb.TxnResponse, error) {
 	if rev == 0 {
-		klogv2.Infof("TXN-UPDATE-INSERT: %v %v", rev, key)
 		// create mode
-		createRev, err := fe.be.Insert(key, val, lease)
+		insertedRecord, err := fe.be.Insert(key, val, lease)
 		if err != nil {
 			return nil, err
 		}
 		resp := &etcdserverpb.TxnResponse{
-			Header:    createResponseHeader(createRev),
+			Header:    createResponseHeader(insertedRecord.ModRevision()),
 			Succeeded: true,
 
 			Responses: []*etcdserverpb.ResponseOp{
 				{
 					Response: &etcdserverpb.ResponseOp_ResponsePut{
 						ResponsePut: &etcdserverpb.PutResponse{
-							Header: createResponseHeader(createRev),
+							Header: createResponseHeader(insertedRecord.ModRevision()),
 						},
 					},
 				},
 			},
 		}
+		fe.lm.notifyInserted(insertedRecord)
 		return resp, nil
 	}
 
 	// update mode
-	klogv2.Infof("TXN-UPDATE-UPDATE: %v %v %v", rev, key, string(val))
-	record, err := fe.be.Update(key, val, rev, lease)
+	oldRecord, record, err := fe.be.Update(key, val, rev, lease)
 	if err == nil {
-		klogv2.Infof("TXN-UPDATE:OK")
+		// notify list manager
+		fe.lm.notifyUpdated(oldRecord, record)
+
 		// success: record was updated
 		resp := &etcdserverpb.TxnResponse{
 			Header:    createResponseHeader(record.ModRevision()),
@@ -195,13 +196,14 @@ func (fe *frontend) txtUpdate(ctx context.Context, rev int64, key string, val []
 				},
 			},
 		}
+
 		return resp, nil
 	} else {
-
+		// error case -- update itself was not performed
 		// we should be able to ignore errors here
 		currentRev, _ := fe.be.CurrentRevision()
 		if storageerrors.IsNotFoundError(err) {
-			klogv2.Infof("TXN-UPDATE:NOT-FOUND")
+			klogv2.V(4).Infof("TXN-UPDATE:NOT-FOUND: %v:%v", key, rev)
 			// record is not found
 			// TODO set current
 			resp := &etcdserverpb.TxnResponse{
@@ -214,7 +216,7 @@ func (fe *frontend) txtUpdate(ctx context.Context, rev int64, key string, val []
 		}
 
 		if storageerrors.IsConflictError(err) {
-			klogv2.Infof("TXN-UPDATE:CONFLICT")
+			klogv2.V(4).Infof("TXN-UPDATE-CONFLICT IN: KEY(%v):REV(%v) - STORED:%v", key, rev, record.ModRevision())
 			// record exist but not at the expected revision
 			resp := &etcdserverpb.TxnResponse{
 				Header:    createResponseHeader(currentRev),
@@ -241,17 +243,21 @@ func (fe *frontend) txnDelete(ctx context.Context, key string, rev int64) (*etcd
 	record, err := fe.be.Delete(key, rev)
 
 	if err != nil {
+		klogv2.V(2).Infof("error deleting %v:%v %v", rev, key, err)
 		return nil, err // TODO: should it be an error response?
 	}
 
+	// notify
+	fe.lm.notifyDeleted(record)
+	// prep and send return
 	return &etcdserverpb.TxnResponse{
-		Header: createResponseHeader(rev),
+		Header: createResponseHeader(record.ModRevision()),
 
 		Responses: []*etcdserverpb.ResponseOp{
 			{
 				Response: &etcdserverpb.ResponseOp_ResponseRange{
 					ResponseRange: &etcdserverpb.RangeResponse{
-						Header: createResponseHeader(rev),
+						Header: createResponseHeader(record.ModRevision()),
 						Kvs:    []*mvccpb.KeyValue{types.RecordToKV(record)},
 					},
 				},
@@ -263,12 +269,12 @@ func (fe *frontend) txnDelete(ctx context.Context, key string, rev int64) (*etcd
 
 func (fe *frontend) txnInsert(ctx context.Context, putRequest *etcdserverpb.PutRequest) (*etcdserverpb.TxnResponse, error) {
 	// TODO: validate the put request for case/values etc..
-	klogv2.Infof("TXN-INSERT: %v", string(putRequest.Key))
-	rev, err := fe.be.Insert(string(putRequest.Key), putRequest.Value, putRequest.Lease)
+	insertedRecord, err := fe.be.Insert(string(putRequest.Key), putRequest.Value, putRequest.Lease)
 	// error occured
 	if err != nil {
 		// key existed
 		if storageerrors.IsEntityAlreadyExists(err) {
+			rev, _ := fe.be.CurrentRevision() // we ingore error here.
 			return &etcdserverpb.TxnResponse{
 				Succeeded: false,
 				Header:    createResponseHeader(rev),
@@ -280,26 +286,30 @@ func (fe *frontend) txnInsert(ctx context.Context, putRequest *etcdserverpb.PutR
 	// success txn-insert
 	response := &etcdserverpb.TxnResponse{
 		Succeeded: true,
-		Header:    createResponseHeader(rev),
+		Header:    createResponseHeader(insertedRecord.ModRevision()),
 		Responses: []*etcdserverpb.ResponseOp{
 			{
 				Response: &etcdserverpb.ResponseOp_ResponsePut{
 					ResponsePut: &etcdserverpb.PutResponse{
-						Header: createResponseHeader(rev),
+						Header: createResponseHeader(insertedRecord.ModRevision()),
 					},
 				},
 			},
 		},
 	}
 
+	fe.lm.notifyInserted(insertedRecord)
 	return response, nil
 }
 
 func (fe *frontend) Compact(ctx context.Context, r *etcdserverpb.CompactionRequest) (*etcdserverpb.CompactionResponse, error) {
-	rev, err := fe.be.DeleteAllBeforeRev(r.Revision)
+	rev, err := fe.be.Compact(r.Revision)
 	if err != nil {
 		return nil, err
 	}
+
+	// notify list manager
+	fe.lm.notifyCompact(r.Revision)
 
 	return &etcdserverpb.CompactionResponse{
 		Header: createResponseHeader(rev),
