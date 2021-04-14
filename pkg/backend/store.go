@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
@@ -41,14 +42,15 @@ import (
 */
 
 type Backend interface {
-	Insert(key string, value []byte, lease int64) (int64, error)
+	Insert(key string, value []byte, lease int64) (types.Record, error)
 	Get(key string, revision int64) (types.Record, int64, error)
 	Delete(key string, revision int64) (types.Record, error)
-	Update(key string, val []byte, revision int64, lease int64) (types.Record, error)
+	Update(key string, val []byte, revision int64, lease int64) (types.Record, types.Record, error)
 	ListAllCurrent() (int64, []types.Record, error)
 	ListForPrefix(prefix string) (int64, []types.Record, error)
-	ListForWatch(key string, startRevision int64) ([]types.Record, error)
-	DeleteAllBeforeRev(rev int64) (int64, error)
+	ListEvents(startRevision int64) ([]types.Record, error)
+	Compact(rev int64) (int64, error)
+	GetCompactedRev(force bool) (int64, error)
 	CurrentRevision() (int64, error)
 
 	// leader election stuff
@@ -64,6 +66,10 @@ type Backend interface {
 }
 
 type store struct {
+	// last compacted
+	lowWatermarkLock sync.Mutex
+	compactEntity    *storage.Entity
+
 	rev    revision.Revisioner
 	config *config.Config
 	t      *storage.Table
@@ -121,4 +127,30 @@ func (s *store) ensureStore() error {
 
 	b.InsertOrMergeEntity(e, true)
 	return utils.SafeExecuteBatch(b)
+}
+
+// storage may return empty res with NextLink to follow. The helper
+// works around that
+func (s *store) execQueryFull(metadataLevel storage.MetadataLevel, o *storage.QueryOptions) ([]*storage.Entity, error) {
+	all := make([]*storage.Entity, 0, 16) // rough # of large record
+	res, err := utils.SafeExecuteQuery(s.t, consts.DefaultTimeout, metadataLevel, o)
+	if err != nil {
+		return nil, err
+	}
+
+	all = append(all, res.Entities...)
+
+	for {
+		if res.NextLink == nil {
+			break
+		}
+
+		res, err = utils.SafeExecuteNextResult(res, nil) // TODO: <-- is this correct??(nil options)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, res.Entities...)
+	}
+
+	return all, nil
 }

@@ -3,9 +3,11 @@ package integration
 import (
 	"context"
 	"fmt"
-	"go.etcd.io/etcd/clientv3"
 	"math/rand"
 	"testing"
+	"time"
+
+	"go.etcd.io/etcd/clientv3"
 
 	testutils "github.com/khenidak/london/test/utils"
 	basictestutils "github.com/khenidak/london/test/utils/basic"
@@ -17,7 +19,8 @@ func TestIntegrationWatch(t *testing.T) {
 	defer stopfn()
 
 	client := testutils.MakeTestEtcdClient(c, t)
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*5)
+	defer cancel()
 
 	firstComponent := testutils.RandStringRunes(8)
 	secondComponent := testutils.RandStringRunes(8)
@@ -89,27 +92,28 @@ func TestIntegrationWatch(t *testing.T) {
 
 			changesMade[k] = &newVal
 			orderdChangeKeys = append(orderdChangeKeys, k)
-		case 2: // delete
-			t.Logf("deleting key:%v", k)
+			/*
+				case 2: // delete
+					t.Logf("deleting key(%v):%v", insertRevs[k], k)
 
-			createRes, err := client.KV.Txn(ctx).If(
-				clientv3.Compare(clientv3.ModRevision(k), "=", insertRevs[k]),
-			).Then(
-				clientv3.OpDelete(k),
-			).Else(
-				clientv3.OpGet(k),
-			).Commit()
+					createRes, err := client.KV.Txn(ctx).If(
+						clientv3.Compare(clientv3.ModRevision(k), "=", insertRevs[k]),
+					).Then(
+						clientv3.OpDelete(k),
+					).Else(
+						clientv3.OpGet(k),
+					).Commit()
 
-			if err != nil {
-				t.Fatalf("failed to delete entry with error:%v", err)
-			}
-			if !createRes.Succeeded {
-				t.Fatalf("failed to create key result was not success")
-			}
+					if err != nil {
+						t.Fatalf("failed to delete entry with error:%v", err)
+					}
+					if !createRes.Succeeded {
+						t.Fatalf("failed to create key result was not success")
+					}
 
-			changesMade[k] = nil
-			orderdChangeKeys = append(orderdChangeKeys, k)
-
+					changesMade[k] = nil
+					orderdChangeKeys = append(orderdChangeKeys, k)
+			*/
 		case 3: // none
 			t.Logf("not touching key:%v", k)
 		}
@@ -151,9 +155,11 @@ func TestIntegrationWatch(t *testing.T) {
 	}
 
 	// You will need this if things go wrong here
-	//	for _, e := range events {
-	//	t.Logf("REV %v KEY:%v TYPE:%v", e.Kv.ModRevision, string(e.Kv.Key), e.Type)
-	//}
+	/*
+		for _, e := range events {
+			t.Logf("REV %v KEY:%v TYPE:%v Mod:%v Create:%v", e.Kv.ModRevision, string(e.Kv.Key), e.Type, e.IsModify(), e.IsCreate())
+		}
+	*/
 	// compare events
 	if len(events) != len(orderdChangeKeys) {
 		t.Fatalf("expected len of events %v got %v", len(orderdChangeKeys), len(events))

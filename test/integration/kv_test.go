@@ -149,6 +149,20 @@ func TestIntegrationTxnDelete(t *testing.T) {
 		t.Fatalf("delete tx failed:%+v", txnResp)
 	}
 
+	if len(txnResp.Responses) == 0 {
+		t.Fatal("should return the deleted record")
+	}
+
+	deleteRange := txnResp.Responses[0].GetResponseRange()
+	if deleteRange == nil {
+		t.Fatalf("should have delete range response")
+	}
+
+	if len(deleteRange.Kvs) == 0 {
+		t.Fatalf("should have  one kv in delete response")
+	}
+
+	t.Logf("got:%+v", deleteRange.Kvs[0])
 	getResponse, err := client.Get(ctx, k)
 
 	if err != nil {

@@ -18,12 +18,12 @@ func TestGet(t *testing.T) {
 	key := fmt.Sprintf("/%s/%s/%s", randStringRunes(8), randStringRunes(8), randStringRunes(8))
 	val := randStringRunes(1024 * 1024)
 
-	rev, err := be.Insert(key, []byte(val), 1)
+	insertedRecord, err := be.Insert(key, []byte(val), 1)
 	if err != nil {
 		t.Fatalf("failed to insert with err :%v", err)
 	}
 
-	t.Logf("TestGet inserted with rev:%v", rev)
+	t.Logf("TestGet inserted with rev:%v", insertedRecord.ModRevision())
 
 	// get latest
 	latestRecord, _, err := be.Get(key, 0)
@@ -36,7 +36,7 @@ func TestGet(t *testing.T) {
 	}
 
 	// get by rev
-	record, _, err := be.Get(key, rev)
+	record, _, err := be.Get(key, insertedRecord.ModRevision())
 	if err != nil {
 		t.Logf("failed to get by rev with err :%v", err)
 	}

@@ -26,14 +26,8 @@ func (fe *frontend) leaseMangementLoop() {
 		myName := fmt.Sprintf("%v", time.Now().UTC().UnixNano())
 		klogv2.Infof("lease manager: failed to get hostname with err:%v and used a random generated name instead:%v - process restart will yield in lease loss", err, myName)
 	}
-	var ticker *time.Ticker
-	if fe.config.LeaseMgmtRunInterval != 0 {
-		klogv2.Infof("lease manager: operating at test 1s intervals")
-		ticker = time.NewTicker(time.Second * time.Duration(fe.config.LeaseMgmtRunInterval))
-	} else {
-		klogv2.Infof("lease manager: operating at 10s intervals")
-		ticker = time.NewTicker(time.Second * 10)
-	}
+	klogv2.Infof("lease manager: operating at 10s intervals")
+	ticker := time.NewTicker(time.Second * 10)
 
 	stopCh := fe.config.Runtime.Context.Done()
 	for {
@@ -55,17 +49,23 @@ func (fe *frontend) leaseMangementLoop() {
 					klogv2.Infof("lease manager: failed to elect leader. current leader is:%v.. will try again in 10s", holder)
 					continue
 				}
-				// we are leader for at least 10s
-				// let us do the work. We are not passing
-				// context. assuming that whatever # of expired
-				// leases will be processed in < 10s window
-				fe.leaseManagementIteration()
 			}
+			// we are leader for at least 10s
+			// let us do the work. We are not passing
+			// context. assuming that whatever # of expired
+			// leases will be processed in < 10s window
+			start := time.Now()
+			leases, keys := fe.leaseManagementIteration()
+			duration := time.Since(start)
+			klogv2.Errorf("lease-manager: ran for %v deleting %v keys over %v expired leases", duration, keys, leases)
+
+		default:
+			// no op
 		}
 	}
 }
 
-func (fe *frontend) leaseManagementIteration() {
+func (fe *frontend) leaseManagementIteration() (leasesDeleted int, keysDeleted int) {
 	// get all current leases
 
 	// The docs is not clear on what happens to
@@ -76,10 +76,12 @@ func (fe *frontend) leaseManagementIteration() {
 	leases, err := fe.be.GetLeases()
 	if err != nil {
 		klogv2.Infof("lease manager: failed to get leases with err:%v will try again in 5s", err)
+		return 0, 0
 	}
 
 	// leases that have expired.
 	leasesToOperateOn := make([]*types.Lease, 0, 0)
+	deleted := 0
 
 	for _, lease := range leases {
 		if lease.Status == types.RevokedLease || hasExpired(lease) {
@@ -87,46 +89,49 @@ func (fe *frontend) leaseManagementIteration() {
 		}
 	}
 
-	klogv2.Infof("lease manager: number of expired leases:%v", len(leasesToOperateOn))
+	klogv2.V(8).Infof("lease manager: number of expired leases:%v", len(leasesToOperateOn))
 	// in this list, if a lease is active
 	// expire it and then delete its data
 	// if it was revoked check that data is
 	// removed then
 	for _, lease := range leasesToOperateOn {
 		if lease.Status == types.ActiveLease {
-			// mark it as in active
+			// mark it as inactive
 			lease.Status = types.RevokedLease
 			if err := fe.be.UpdateLease(lease); err != nil {
-				klogv2.Infof("lease manager: failed to mark lease:%v as revoked with err:%v will try again later", lease.ID, err)
+				klogv2.Errorf("lease manager: failed to mark lease:%v as revoked with err:%v will try again later", lease.ID, err)
 				continue
 			}
-			klogv2.Infof("lease manager: marked lease:%v as revoked because it has expired. will delete related keys", lease.ID)
+			klogv2.V(8).Infof("lease manager: marked lease:%v as revoked because it has expired. will delete related keys", lease.ID)
 		}
 		_, records, err := fe.be.ListAllCurrentWithLease(lease.ID)
 		if err != nil {
-			klogv2.Infof("lease manager: failed to get records for lease:%v err:%v, will try again later", lease.ID, err)
+			klogv2.Errorf("lease manager: failed to get records for lease:%v err:%v, will try again later", lease.ID, err)
 			continue
 		}
 
 		if len(records) == 0 {
 			// this is a candidate for removal
 			if err := fe.be.DeleteLease(lease.ID); err != nil {
-				klogv2.Infof("lease manager: failed to delete lease:%v err:%v will try agaion later", lease.ID, err)
+				klogv2.Errorf("lease manager: failed to delete lease:%v err:%v will try agaion later", lease.ID, err)
 				continue
 			}
-			klogv2.Infof("lease manager: deleted expired lease:%v", lease.ID)
+			klogv2.V(8).Infof("lease manager: deleted expired lease:%v and all its keys", lease.ID)
 		}
 
 		// delete all records assiated with this lease
 		for _, r := range records {
 			_, err := fe.be.Delete(string(r.Key()), r.ModRevision())
 			if err != nil {
-				klogv2.Infof("lease manager: failed to delete key(%v):[%v]:%v err:%v will try again later", lease.ID, r.ModRevision(), string(r.Key()), err)
+				klogv2.Errorf("lease manager: failed to delete lease(%v) %v:%v err:%v will try again later", lease.ID, r.ModRevision(), string(r.Key()), err)
 				continue
 			}
-			klogv2.Infof("lease manager: deleted key(%v):[%v]:%v", string(r.Key()), lease.ID, r.ModRevision())
+			deleted++
+			klogv2.V(8).Infof("lease manager: deleted key(%v):[%v]:%v", string(r.Key()), lease.ID, r.ModRevision())
 		}
 	}
+
+	return len(leasesToOperateOn), deleted
 }
 func hasExpired(lease *types.Lease) bool {
 	now := time.Now().UTC().Unix()

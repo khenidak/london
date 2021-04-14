@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	klogv2 "k8s.io/klog/v2"
+	//klogv2 "k8s.io/klog/v2"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
 
@@ -16,7 +16,7 @@ import (
 )
 
 func (s *store) Get(key string, revision int64) (types.Record, int64, error) {
-	klogv2.Infof("STORE-GET: %v:%v", revision, key)
+	// 	klogv2.Infof("STORE-GET: %v:%v", revision, key)
 
 	validKey := storerecord.CreateValidKey(key)
 	validRev := storerecord.RevToString(revision)
@@ -45,21 +45,21 @@ func (s *store) Get(key string, revision int64) (types.Record, int64, error) {
 		Filter: f.Generate(),
 	}
 
-	res, err := utils.SafeExecuteQuery(s.t, consts.DefaultTimeout, storage.MinimalMetadata, o)
+	entities, err := s.execQueryFull(storage.MinimalMetadata, o)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	currentRev, _ := s.rev.Current()
 	// no results or deleted record
-	if len(res.Entities) == 0 {
+	if len(entities) == 0 {
 		return nil, currentRev, nil
 	}
 
 	if !getCurrent {
 		// this is get by Revision
 		// we need another query, since the original query included the data
-		record, err := storerecord.NewFromEntities(res.Entities, false)
+		record, err := storerecord.NewFromEntities(entities, false)
 		if err != nil {
 			return nil, currentRev, err
 		}
@@ -71,25 +71,25 @@ func (s *store) Get(key string, revision int64) (types.Record, int64, error) {
 
 	// if we are trying to get current record
 	// then res must be the row, now we need get the data
-	if len(res.Entities) > 1 {
-		return nil, currentRev, fmt.Errorf("expected to get one current row got %v", len(res.Entities))
+	if len(entities) > 1 {
+		return nil, currentRev, fmt.Errorf("expected to get one current row got %v", len(entities))
 	}
 
 	// get data for this row
-	rowRev := res.Entities[0].Properties[consts.RevisionFieldName].(string)
+	rowRev := entities[0].Properties[consts.RevisionFieldName].(string)
 	dataFilter := filterutils.NewFilter()
 	dataFilter.And(
 		filterutils.IncludeDataRows(rowRev),
 	)
 
 	o.Filter = dataFilter.Generate()
-	klogv2.Infof("GET-DATA-ROWS-FOR-LATEST:%v", o.Filter)
+	//	klogv2.Infof("GET-DATA-ROWS-FOR-LATEST:%v", o.Filter)
 	dataRes, err := utils.SafeExecuteQuery(s.t, consts.DefaultTimeout, storage.MinimalMetadata, o)
 	if err != nil {
 		return nil, currentRev, err
 	}
 
-	record, err := storerecord.NewFromRowAndDataEntities(res.Entities[0], dataRes.Entities)
+	record, err := storerecord.NewFromRowAndDataEntities(entities[0], dataRes.Entities)
 	if err != nil {
 		return nil, currentRev, err
 	}
@@ -98,13 +98,14 @@ func (s *store) Get(key string, revision int64) (types.Record, int64, error) {
 		currentRev = record.ModRevision()
 	}
 
+	// klogv2.Infof("GET: %s:%v", key, record.ModRevision())
 	return record, currentRev, nil
 }
 
 // given a row entity, do we need to get data entities or can we
 // create a record with only row entity?
 func (s *store) GetIfNeeded(rowEntity *storage.Entity, forceCurrent bool) (types.Record, int64, error) {
-	klogv2.Infof("STORE-GET-IF-NEEDED: %v:%v (current:%v)", rowEntity.Properties[consts.RevisionFieldName], rowEntity.PartitionKey, forceCurrent)
+	// klogv2.Infof("STORE-GET-IF-NEEDED: %v:%v (current:%v)", rowEntity.Properties[consts.RevisionFieldName], rowEntity.PartitionKey, forceCurrent)
 	countDataEntitiesAsString := rowEntity.Properties[consts.DataPartsCountFieldName].(string)
 	countDataEntities, _ := strconv.ParseInt(countDataEntitiesAsString, 10, 32)
 	if countDataEntities > 0 {
@@ -122,5 +123,4 @@ func (s *store) GetIfNeeded(rowEntity *storage.Entity, forceCurrent bool) (types
 		return nil, currentRev, err
 	}
 	return record, currentRev, nil
-
 }

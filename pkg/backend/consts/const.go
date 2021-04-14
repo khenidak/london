@@ -35,7 +35,7 @@ const (
 	EntityTypeLeaderElection = "LE"
 	EntityTypeLease          = "LS"
 
-	EventEntityRowKeyFormat = "event-%s-%s"
+	EventEntityRowKeyFormat = "ev-%s"
 	DataEntityRowKeyFormat  = "data-%v-%s"
 
 	WriteTesterPartitionKey = "__SYS__WRITE_ACCESS_CHECK__"
@@ -87,4 +87,11 @@ const (
 	LeaseGrantedTTLFieldName = "lgttl"
 	LeaseExpiresOnFieldName  = "lex"
 	LeaseStatusFieldName     = "lstu"
+)
+
+// low water mark (compact
+const (
+	CompactPartitionName = "__COMPACT__"
+	CompactRowKey        = "__COMPACT__"
+	CompactRevFieldName  = "lowwatermark"
 )
