@@ -129,9 +129,11 @@ func (fe *frontend) Watch(ws etcdserverpb.Watch_WatchServer) error {
 
 			if cancelRequest := msg.GetCancelRequest(); cancelRequest != nil {
 				watchServerLock.Lock()
-				w := watchersForThisServer[cancelRequest.WatchId]
+				if w := watchersForThisServer[cancelRequest.WatchId]; w != nil {
+					w.closerFn("close requested by watch server")
+				}
+				delete(watchersForThisServer, cancelRequest.WatchId)
 				watchServerLock.Unlock()
-				w.closerFn("close requested by watch server")
 				continue
 			}
 
