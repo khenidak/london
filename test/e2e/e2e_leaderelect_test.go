@@ -44,14 +44,15 @@ func TestLeaderElect(t *testing.T) {
 		},
 	}
 
+	gotLease := false
 	run := func(ctx context.Context) {
 		// complete your controller loop here
 		t.Logf("Controller loop...")
-
-		select {}
+		gotLease = true
+		time.Sleep(time.Second * 5)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
 
 	// start the leader election code loop
@@ -89,4 +90,8 @@ func TestLeaderElect(t *testing.T) {
 			},
 		},
 	})
+
+	if !gotLease {
+		t.Fatalf("failed to acquire lease")
+	}
 }

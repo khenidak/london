@@ -154,7 +154,6 @@ func (r *rev) newRev() (*storage.Entity, error) {
 }
 
 func (r *rev) getRev() (*storage.Entity, error) {
-	// TODO wrap with retry
 	entity := r.t.GetEntityReference(consts.RevisionerPartitionKey, consts.RevisionerRowKey)
 	err := utils.SafeExecuteEntityGet(entity, consts.DefaultTimeout, storage.FullMetadata, &storage.GetEntityOptions{Select: []string{consts.RevisionerProperty}})
 

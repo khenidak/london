@@ -35,25 +35,31 @@ type Frontend interface {
 }
 
 type frontend struct {
-	config *config.Config
-	be     backend.Backend
-
+	config     *config.Config
+	be         backend.Backend
+	lm         *listManager
 	leaseLock  sync.Mutex
 	watchCount int64
 	leases     map[int64]*types.Lease
 }
 
 func NewFrontend(config *config.Config, be backend.Backend) (Frontend, error) {
+	// list manager needs to know last compacted rev
+	compactedRev, err := be.GetCompactedRev(true)
+	if err != nil {
+		return nil, err
+	}
+
 	fe := &frontend{
 		config: config,
 		be:     be,
 		leases: make(map[int64]*types.Lease),
+		lm:     newlistManager(config, be, compactedRev),
 	}
 	// start lease mgmt loop
 	go fe.leaseMangementLoop()
 
 	return fe, nil
-
 }
 
 func (fe *frontend) StartListening() error {

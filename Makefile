@@ -66,6 +66,9 @@ unit-tests: ## runs unit tests
 	@LONDON_TESTING_VARS=$(varFilePath) go test $(mkfile_dirpath)/pkg/backend/retryable   -count=1 $(ADD_TEST_ARGS) || exit 1
 	@echo "** running unit test in @ $(mkfile_dirpath)/pkg/backend"
 	@LONDON_TESTING_VARS=$(varFilePath) go test $(mkfile_dirpath)/pkg/backend -count=1  $(ADD_TEST_ARGS) || exit 1
+	@echo "** running unit test in @ $(mkfile_dirpath)/pkg/frontend"
+	@LONDON_TESTING_VARS=$(varFilePath) go test $(mkfile_dirpath)/pkg/frontend -count=1  $(ADD_TEST_ARGS) || exit 1
+
 
 test: unit-tests integration-tests e2e-test ## runs all tests
 

@@ -74,12 +74,6 @@ type Config struct {
 	// TODO MSI etc
 
 	Runtime Runtime
-
-	// Lease Mgmt run interval is for testing reasons
-	// only. it is not exposed a config knop
-	// we set this to short interval for testing
-	// to short circut the wait time
-	LeaseMgmtRunInterval int
 }
 
 func NewConfig() *Config {

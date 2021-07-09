@@ -129,9 +129,11 @@ func (fe *frontend) Watch(ws etcdserverpb.Watch_WatchServer) error {
 
 			if cancelRequest := msg.GetCancelRequest(); cancelRequest != nil {
 				watchServerLock.Lock()
-				w := watchersForThisServer[cancelRequest.WatchId]
+				if w := watchersForThisServer[cancelRequest.WatchId]; w != nil {
+					w.closerFn("close requested by watch server")
+				}
+				delete(watchersForThisServer, cancelRequest.WatchId)
 				watchServerLock.Unlock()
-				w.closerFn("close requested by watch server")
 				continue
 			}
 
@@ -145,10 +147,8 @@ func (fe *frontend) watcherLoop(w *watcher, r *etcdserverpb.WatchCreateRequest) 
 	defer w.waitGroup.Done()
 	keyWithSuffix := suffixedKey(string(r.Key))
 
-	klogv2.Infof("WATCHRUNNING:%v-%v", w.watcherId, keyWithSuffix)
-	first := true
 	done := w.watcherContext.Done()
-	lastRevision := r.StartRevision + 1 // azure greater than op is a bit problamtic
+	lastRevision := r.StartRevision
 	createSend := false
 	for {
 
@@ -157,16 +157,13 @@ func (fe *frontend) watcherLoop(w *watcher, r *etcdserverpb.WatchCreateRequest) 
 			klogv2.Infof("WATCH %v:%v is done", w.watcherId, w.key)
 			return
 		default:
-			if !first {
-				//We scale it down to once every 250 ms
-				// except first run
-				time.Sleep(250 * time.Millisecond)
-			}
-			first = false
+			// lower the resolution of this loop otherwise
+			// it will burn through cpu cycles
+			time.Sleep(250 * time.Millisecond)
 
-			records, err := fe.be.ListForWatch(keyWithSuffix, lastRevision)
+			records, err := fe.lm.events(keyWithSuffix, lastRevision)
 			if err != nil {
-				klogv2.Infof("WATCH CLOSERR (ListForWatch) :%v", err)
+				klogv2.Infof("WATCH:[%v] CLOSERR (ListForWatch) :%v", keyWithSuffix, err)
 				w.closerFn(err.Error())
 				return
 			}
@@ -182,15 +179,20 @@ func (fe *frontend) watcherLoop(w *watcher, r *etcdserverpb.WatchCreateRequest) 
 				// convert this record to an event
 				e, err := fe.recordToEvent(record)
 				if err != nil {
-					klogv2.Infof("WATCH err (recordToEvent) :%v", err)
+					klogv2.Infof("WATCH:[%v] err (recordToEvent) :%v", keyWithSuffix, err)
 					w.closerFn(err.Error())
 					return
 				}
+				/*
+					if e.Type == mvccpb.PUT {
+						klogv2.Infof("WATCH-UPDATE: %v:%v", string(e.Kv.Key), e.Kv.ModRevision)
+					}
+				*/
 				// add it to events
 				allEvents = append(allEvents, e)
 			}
 			// set revision to + 1
-			lastRevision = lastRevision + 1
+			//lastRevision = lastRevision + 1
 
 			// TODO: We need to figure out a way to send create
 			// if the watch didn't produce data at all
@@ -202,7 +204,6 @@ func (fe *frontend) watcherLoop(w *watcher, r *etcdserverpb.WatchCreateRequest) 
 					Events:  []*mvccpb.Event{},
 				}
 
-				klogv2.Infof("WATCH sending created:%v-%v", w.watcherId, keyWithSuffix)
 				if err := w.watchServer.Send(created); err != nil {
 					klogv2.Infof("WATCHSENDERR 1st send err %v:%v %v", w.watcherId, keyWithSuffix, err)
 					// don't close watcher here, since the error is from underlying
@@ -213,24 +214,21 @@ func (fe *frontend) watcherLoop(w *watcher, r *etcdserverpb.WatchCreateRequest) 
 				createSend = true
 			}
 
-			klogv2.Infof("WATCHSEND: %v events to :%v", len(allEvents), keyWithSuffix)
 			// prep a response
 			response := &etcdserverpb.WatchResponse{
-				Header:          createResponseHeader(lastRevision),
-				WatchId:         w.watcherId,
-				CompactRevision: r.StartRevision,
-				Events:          allEvents,
+				Header:  createResponseHeader(lastRevision),
+				WatchId: w.watcherId,
+				//CompactRevision: r.StartRevision,
+				Events: allEvents,
 			}
 
 			// send it
 			if err := w.watchServer.Send(response); err != nil {
-				klogv2.Infof("WATCHCLOSEERR err (sending response) :%v", err)
+				klogv2.Infof("WATCHCLOSEERR:[%v] err (sending response):%v", keyWithSuffix, err)
 				// don't close watcher here, since the error is from underlying
 				// grpc stream and context would be probably already closed
 				return
 			}
-
-			klogv2.Infof("WATCHSENDOK %v", keyWithSuffix)
 		}
 	}
 }
@@ -241,9 +239,11 @@ func (fe *frontend) recordToEvent(record types.Record) (*mvccpb.Event, error) {
 	e := &mvccpb.Event{}
 	e.Kv = types.RecordToKV(record)
 
-	if !record.IsEventRecord() {
-		panic("must be event record") // should never happen. Left here during early release and must be removed later on
-	}
+	/*
+		if !record.IsEventRecord() {
+			panic("must be event record") // should never happen. Left here during early release and must be removed later on
+		}
+	*/
 	if record.IsCreateEvent() {
 		e.Type = mvccpb.PUT
 		return e, nil

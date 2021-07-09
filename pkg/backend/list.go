@@ -91,26 +91,16 @@ func (s *store) execQuery(o *storage.QueryOptions,
 	return ToRecordsFunc()
 }
 
-func (s *store) ListForWatch(key string, startRevision int64) ([]types.Record, error) {
-	validKey := storerecord.CreateValidKey(key)
+// lists events for any key for a > rev
+func (s *store) ListEvents(startRevision int64) ([]types.Record, error) {
 	validRevision := storerecord.RevToString(startRevision)
-	// build a filter string for
-	// current records (either newly inserted or the result of an update)
-	// deleted records
-
-	// deleted and rev >= rev
-	// ||
-	// current and rev >= rev
 
 	bookKeeper, recordsMaker := s.getDefaultBookingKeepingFuncs(true)
 	f := filterutils.NewFilter()
 	f.And(
-		filterutils.PartitionKeyPrefix(validKey),
 		filterutils.GreaterThanOrEqual(consts.RevisionFieldName, validRevision),
 		filterutils.ExcludeRows(),
 		filterutils.CombineOr(
-			//			filterutils.DeletedKeysOnly(),
-			//		filterutils.CurrentKeysOnly(),
 			/* this should not return any un-needed data since we also have the revision predicate */
 			filterutils.IncludeDataRowsForAny(),
 			filterutils.IncludeEvents(),
