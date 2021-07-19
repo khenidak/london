@@ -43,7 +43,7 @@ get-kubernetes: ## gets kubernetes source code
 	@$(mkfile_dirpath)/$(hackDir)/get_kubernetes.sh "$(KUBERNETES_VERSION)" "$(mkfile_dirpath)/$(kubernetes_testdir_name)" $(mkfile_dirpath)
 
 build-kubernetes: get-kubernetes ## buils kubernetes source code for e2e tests
-	@$(mkfile_dirpath)/$(hackDir)/get_kubernetes.sh "$(KUBERNETES_VERSION)" "$(mkfile_dirpath)/$(kubernetes_testdir_name)" $(mkfile_dirpath)
+	@$(mkfile_dirpath)/$(hackDir)/build_kubernetes.sh "$(KUBERNETES_VERSION)" "$(mkfile_dirpath)/$(kubernetes_testdir_name)" $(mkfile_dirpath)
 
 e2e-test: build-kubernetes  ## runs e2e tests against an in-proc kube-api-server
 	@echo "** running e2e test @ $(mkfile_dirpath)/test/e2e"

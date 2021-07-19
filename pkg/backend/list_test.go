@@ -8,6 +8,9 @@ import (
 	basictestutils "github.com/khenidak/london/test/utils/basic"
 )
 
+/*
+// we no longer need to test for ListByPrefix.
+// TODO REMOVE TEST AND FUNC
 func TestListForPrefix(t *testing.T) {
 	c := basictestutils.MakeTestConfig(t, false)
 
@@ -94,7 +97,7 @@ func TestListForPrefix(t *testing.T) {
 		t.Fatalf("some records were not returned in list %v", len(data))
 	}
 }
-
+*/
 func TestListAllCurrent(t *testing.T) {
 	// NOTE NOTE NOTE NOTE TODO
 	// This test takes 30-45 extra to clear the table
