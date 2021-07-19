@@ -8,159 +8,6 @@ import (
 	basictestutils "github.com/khenidak/london/test/utils/basic"
 )
 
-type change struct {
-	changeType string // ADD UPDATE DELETE
-	key        string
-	value      []byte
-	modRev     int64
-	prevRev    int64
-}
-
-func TestListForWatch(t *testing.T) {
-	c := basictestutils.MakeTestConfig(t, false)
-
-	be, err := NewBackend(c)
-	if err != nil {
-		t.Fatalf("failed to create backend with err:%v", err)
-	}
-
-	// insert a 200 record
-	data := make(map[string][]byte)
-	revs := make(map[string]int64)
-	baseKey := fmt.Sprintf("%s/%s/", randStringRunes(8), randStringRunes(8))
-	keyFormat := "%s%s"
-	changes := make([]change, 0)
-	startRev, err := be.CurrentRevision()
-	if err != nil {
-		t.Fatalf("unexpected error reading current rev :%v", err)
-	}
-	t.Logf("start rev is:%v", startRev)
-	for i := 0; i <= 20; i++ {
-		key := fmt.Sprintf(keyFormat, baseKey, randStringRunes(8))
-		// we insert small but we update big
-		keyValue := []byte(randStringRunes(1024 * 1024))[:consts.DataRowMaxSize-1]
-
-		data[key] = keyValue
-		rev, err := be.Insert(key, keyValue, 1)
-		if err != nil {
-			t.Fatalf("failed to insert key with err :%v", err)
-		}
-		revs[key] = rev
-		changes = append(changes, change{
-			changeType: "ADD",
-			key:        key,
-			modRev:     rev,
-			value:      keyValue,
-		})
-	}
-
-	idx := 0
-
-	// delete first 10 record
-	for key, _ := range data {
-		if idx == 9 {
-			break
-		}
-		idx++
-		deletedRecord, err := be.Delete(key, revs[key])
-		if err != nil {
-			t.Fatalf("failed to delete key with err;%v", err)
-		}
-		changes = append(changes, change{
-			changeType: "DELETE",
-			modRev:     deletedRecord.ModRevision(),
-			prevRev:    deletedRecord.PrevRevision(),
-			key:        key,
-			value:      deletedRecord.Value(),
-		})
-		delete(data, key)
-		delete(revs, key)
-	}
-
-	// update first 5
-	idx = 0
-	for key, _ := range data {
-		if idx == 4 {
-			break
-		}
-		idx++
-		updatedValue := []byte(randStringRunes(1024 * 1024 * 10))[:consts.DataRowMaxSize*3]
-		data[key] = updatedValue
-		record, err := be.Update(key, updatedValue, revs[key], 0)
-		if err != nil {
-			t.Fatalf("failed to update key with err:%v", err)
-		}
-		changes = append(changes, change{
-			changeType: "UPDATE",
-			modRev:     record.ModRevision(),
-			prevRev:    record.PrevRevision(),
-			key:        key,
-			value:      record.Value(),
-		})
-	}
-
-	// insert more
-	for i := 0; i <= 10; i++ {
-		key := fmt.Sprintf(keyFormat, baseKey, randStringRunes(8))
-		// we insert small but we update big
-		keyValue := []byte(randStringRunes(1024 * 1024))[:consts.DataRowMaxSize-1]
-
-		data[key] = keyValue
-		rev, err := be.Insert(key, keyValue, 1)
-		if err != nil {
-			t.Fatalf("failed to insert key with err :%v", err)
-		}
-		revs[key] = rev
-		changes = append(changes, change{
-			changeType: "ADD",
-			key:        key,
-			modRev:     rev,
-			value:      keyValue,
-		})
-	}
-
-	records, err := be.ListForWatch(baseKey, startRev)
-	if err != nil {
-		t.Fatalf("failed to list for watch with err:%v", err)
-	}
-	t.Logf("Len records:%v len changes:%v", len(records), len(changes))
-
-	if len(records) != len(changes) {
-		t.Fatalf("unexpected len of records %v expected %v", len(records), len(changes))
-	}
-
-	for idx, record := range records {
-		//recordKey := string(record.Key())
-		if !record.IsEventRecord() {
-			t.Fatalf("expected all records to be events. record at idx %v is not an event", idx)
-		}
-
-		if record.IsCreateEvent() && changes[idx].changeType != "ADD" {
-			t.Fatalf("expected change ADD at idx %v got Create:%v Update:%v Delete:%v", idx, record.IsCreateEvent(), record.IsUpdateEvent(), record.IsDeleteEvent())
-		}
-
-		if record.IsDeleteEvent() && changes[idx].changeType != "DELETE" {
-			t.Fatalf("expected change DELETE at idx %v got Create:%v Update:%v Delete:%v", idx, record.IsCreateEvent(), record.IsUpdateEvent(), record.IsDeleteEvent())
-		}
-		if record.IsUpdateEvent() && changes[idx].changeType != "UPDATE" {
-			t.Fatalf("expected change UPDATE at idx %v got Create:%v Update:%v Delete:%v", idx, record.IsCreateEvent(), record.IsUpdateEvent(), record.IsDeleteEvent())
-		}
-
-		if record.ModRevision() != changes[idx].modRev {
-			t.Fatalf("expected mod rev %v got %v at idx:%v", changes[idx].modRev, record.ModRevision(), idx)
-
-		}
-
-		if record.PrevRevision() != changes[idx].prevRev {
-			t.Fatalf("expected prev rev %v got %v at idx:%v", changes[idx].modRev, record.PrevRevision(), idx)
-		}
-		if string(record.Value()) != string(changes[idx].value) {
-			t.Fatalf("value do not match at idx:%v", idx)
-		}
-
-	}
-}
-
 func TestListForPrefix(t *testing.T) {
 	c := basictestutils.MakeTestConfig(t, false)
 
@@ -181,10 +28,11 @@ func TestListForPrefix(t *testing.T) {
 		keyValue := []byte(randStringRunes(1024 * 1024))[:consts.DataRowMaxSize-1]
 
 		data[key] = keyValue
-		rev, err := be.Insert(key, keyValue, 1)
+		insertedRecord, err := be.Insert(key, keyValue, 1)
 		if err != nil {
 			t.Fatalf("failed to insert key with err :%v", err)
 		}
+		rev := insertedRecord.ModRevision()
 		revs[key] = rev
 	}
 
@@ -212,7 +60,7 @@ func TestListForPrefix(t *testing.T) {
 		idx++
 		updatedValue := []byte(randStringRunes(1024 * 1024 * 10))[:consts.DataRowMaxSize*3]
 		data[key] = updatedValue
-		record, err := be.Update(key, updatedValue, revs[key], 0)
+		_, record, err := be.Update(key, updatedValue, revs[key], 0)
 		if err != nil {
 			t.Fatalf("failed to update key with err:%v", err)
 		}
@@ -246,7 +94,13 @@ func TestListForPrefix(t *testing.T) {
 		t.Fatalf("some records were not returned in list %v", len(data))
 	}
 }
+
 func TestListAllCurrent(t *testing.T) {
+	// NOTE NOTE NOTE NOTE TODO
+	// This test takes 30-45 extra to clear the table
+	// TODO: look into marking this test as long running
+	// and bypass it in common runs
+	return
 	c := basictestutils.MakeTestConfig(t, true)
 
 	be, err := NewBackend(c)
@@ -254,7 +108,7 @@ func TestListAllCurrent(t *testing.T) {
 		t.Fatalf("failed to create backend with err:%v", err)
 	}
 
-	// insert a 200 record
+	// insert a 20 record
 	data := make(map[string][]byte)
 	revs := make(map[string]int64)
 	keyFormat := "/%s/%s/%s"
@@ -264,10 +118,12 @@ func TestListAllCurrent(t *testing.T) {
 		keyValue := []byte(randStringRunes(1024 * 1024))[:consts.DataRowMaxSize-1]
 
 		data[key] = keyValue
-		rev, err := be.Insert(key, keyValue, 1)
+		insertedRecord, err := be.Insert(key, keyValue, 1)
 		if err != nil {
 			t.Fatalf("failed to insert key with err :%v", err)
 		}
+		rev := insertedRecord.ModRevision()
+
 		revs[key] = rev
 	}
 
@@ -295,7 +151,7 @@ func TestListAllCurrent(t *testing.T) {
 		idx++
 		updatedValue := []byte(randStringRunes(1024 * 1024 * 10))[:consts.DataRowMaxSize*3]
 		data[key] = updatedValue
-		record, err := be.Update(key, updatedValue, revs[key], 0)
+		_, record, err := be.Update(key, updatedValue, revs[key], 0)
 		if err != nil {
 			t.Fatalf("failed to update key with err:%v", err)
 		}
@@ -327,5 +183,124 @@ func TestListAllCurrent(t *testing.T) {
 
 	if len(data) > 0 {
 		t.Fatalf("some records were not returned in list %v", len(data))
+	}
+}
+
+type testEvent struct {
+	key       string
+	rev       int64
+	eventType int
+}
+
+func TestListEvents(t *testing.T) {
+
+	c := basictestutils.MakeTestConfig(t, true)
+
+	be, err := NewBackend(c)
+	if err != nil {
+		t.Fatalf("failed to create backend with err:%v", err)
+	}
+
+	// insert a 10 record
+	startRev := int64(1000000)
+	data := make(map[string][]byte)
+	revs := make(map[string]int64)
+	events := make([]testEvent, 0)
+
+	const eventTypeAdd = 0
+	const eventTypeDelete = 1
+	const eventTypeUpdate = 2
+
+	keyFormat := "/%s/%s/%s"
+	for i := 0; i <= 10; i++ {
+		key := fmt.Sprintf(keyFormat, randStringRunes(8), randStringRunes(8), randStringRunes(8))
+		// we insert small but we update big
+		keyValue := []byte(randStringRunes(10))
+
+		data[key] = keyValue
+		insertedRecord, err := be.Insert(key, keyValue, 1)
+		if err != nil {
+			t.Fatalf("failed to insert key with err :%v", err)
+		}
+		rev := insertedRecord.ModRevision()
+		if rev < startRev {
+			startRev = rev
+		}
+		revs[key] = rev
+		events = append(events, testEvent{
+			key:       key,
+			rev:       rev,
+			eventType: eventTypeAdd,
+		})
+	}
+
+	// delete first 3 record
+	idx := 0
+	for key, _ := range data {
+		if idx == 2 {
+			break
+		}
+		idx++
+		record, err := be.Delete(key, revs[key])
+		if err != nil {
+			t.Fatalf("failed to delete key with err;%v", err)
+		}
+		delete(data, key)
+		events = append(events, testEvent{
+			key:       key,
+			rev:       record.ModRevision(),
+			eventType: eventTypeDelete,
+		})
+
+	}
+
+	// update first 2
+	idx = 0
+	for key, _ := range data {
+		if idx == 2 {
+			break
+		}
+		idx++
+		updatedValue := []byte(randStringRunes(1024 * 1024 * 10))[:consts.DataRowMaxSize*3]
+		data[key] = updatedValue
+		_, record, err := be.Update(key, updatedValue, revs[key], 0)
+		if err != nil {
+			t.Fatalf("failed to update key with err:%v", err)
+		}
+		events = append(events, testEvent{
+			key:       key,
+			rev:       record.ModRevision(),
+			eventType: eventTypeUpdate,
+		})
+	}
+
+	t.Logf("start rev is:%v", startRev)
+	gotEvents, err := be.ListEvents(startRev)
+	if err != nil {
+		t.Fatalf("failed to list events with err:%v", err)
+	}
+
+	if len(gotEvents) != len(events) {
+		t.Fatalf("expected len of events:%v got %v", len(events), len(gotEvents))
+	}
+
+	for idx, gotEvent := range gotEvents {
+		savedEvent := events[idx]
+		if string(gotEvent.Key()) != savedEvent.key {
+			t.Fatalf("event:%v expected key %v got %v", idx, savedEvent.key, gotEvent.Key())
+		}
+
+		if gotEvent.IsCreateEvent() && (savedEvent.eventType != eventTypeAdd) {
+			t.Fatalf("event:%v is Create which was not expected", idx)
+		}
+
+		if gotEvent.IsDeleteEvent() && (savedEvent.eventType != eventTypeDelete) {
+			t.Fatalf("event:%v is Delete which was not expected", idx)
+		}
+
+		// must be an update
+		if !gotEvent.IsCreateEvent() && !gotEvent.IsDeleteEvent() && savedEvent.eventType != eventTypeUpdate {
+			t.Fatalf("event:%v is Update which was not expected", idx)
+		}
 	}
 }

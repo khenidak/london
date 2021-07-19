@@ -16,6 +16,10 @@ import (
 func RevToString(rev int64) string {
 	return fmt.Sprintf("%019d", rev)
 }
+func StringToRev(revString string) int64 {
+	n, _ := strconv.ParseInt(revString, 10, 64)
+	return n
+}
 
 // azure storage table partition key has to be valid
 // e.g. no /
@@ -153,7 +157,7 @@ func CreateEventEntityFromRecord(record StoreRecord) *storage.Entity {
 		Properties: make(map[string]interface{}),
 	}
 	e.PartitionKey = record.RowEntity().PartitionKey
-	e.RowKey = fmt.Sprintf(consts.EventEntityRowKeyFormat, eventType, revision)
+	e.RowKey = fmt.Sprintf(consts.EventEntityRowKeyFormat, revision)
 	e.Properties[consts.RevisionFieldName] = revision
 	e.Properties[consts.FlagsFieldName] = eventType
 	e.Properties[consts.CreateRevisionFieldName] = createRevision

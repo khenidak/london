@@ -20,7 +20,7 @@ fi
 
 
 
-get_kubernetes(){
+build_kubernetes(){
 	cd "$TARGET_PATH/kubernetes"
 	if [[ "$TARGET_VER" != "$(git branch | grep -F '*' | awk '{print $2}')" ]]; then
 		if [[ "" == "$(git branch | grep ${TARGET_VER})" ]]; then
@@ -31,6 +31,13 @@ get_kubernetes(){
 			git checkout ${TARGET_VER}
 		fi
 	fi
+	if [[ ! -d "$TARGET_PATH/kubernetes/_output" ]]; then
+		echo "* _output dir does not exist. building kubernetes (generated items only)"
+		make generated_files gen_openapi
+		return_to_path
+	else
+		 echo "* _output dir exists. not building"
+	fi
 }
 
 return_to_path(){
@@ -40,24 +47,6 @@ return_to_path(){
 	fi
 }
 
-echo "*************************************************************************"
-echo "* ensure kubernetes exists for e2e tests" 
-echo "* Path: ${TARGET_PATH}"
-echo "* Version: ${TARGET_VER}"
-echo "*************************************************************************"
-if [ -d ${TARGET_PATH} ]; then 
-	echo "* dirctory ${TARGET_PATH}"
-	echo "* found and is NOT EMPTY .. NOT CLONING"
-	exit 0
-fi
 
-echo "* ensure directory: ${TARGET_PATH}"
-mkdir -p ${TARGET_PATH}
-
-
-echo "* change dir to:${TARGET_PATH}"
-cd ${TARGET_PATH}
-echo "* cloning ${TARGET_VER} with depth=1"
-git clone  https://github.com/kubernetes/kubernetes.git
-get_kubernetes
+build_kubernetes
 return_to_path

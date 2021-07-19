@@ -112,7 +112,7 @@ func TestInsert(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Logf("testName:%s", testCase.name)
-			rev, err := be.Insert(testCase.key, testCase.value, testCase.lease)
+			insertedRecord, err := be.Insert(testCase.key, testCase.value, testCase.lease)
 			if err != nil {
 				if !testCase.expectError {
 					t.Fatalf("unexpected error during insert:%v", err)
@@ -125,7 +125,7 @@ func TestInsert(t *testing.T) {
 				}
 			}
 
-			entities := GetEntitiesForKeyRev(t, c, testCase.key, rev)
+			entities := GetEntitiesForKeyRev(t, c, testCase.key, insertedRecord.ModRevision())
 			if len(entities) != testCase.entityCount {
 				t.Fatalf("expected %v entities got %v", testCase.entityCount, len(entities))
 			}
