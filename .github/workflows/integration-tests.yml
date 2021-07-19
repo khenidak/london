@@ -1,0 +1,45 @@
+name: Run Integration Tests
+on:
+  pull_request:
+    paths-ignore:
+      - "**.md"
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Set up Go 1.15
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.15
+
+      - name: Checkout code into the Go module directory
+        uses: actions/checkout@v2
+
+      - name: Get Kubernetes release
+        run: |
+          make get-kubernetes KUBERNETES_VERSION=v1.18.0
+
+      - name: Download go modules
+        run: |
+          go mod download
+
+      - name: Generate test vars file
+        env:
+          ACCOUNT_NAME: ${{ secrets.ACCOUNT_NAME }}
+          ACCOUNT_KEY: ${{ secrets.ACCOUNT_KEY }}
+          TABLE_NAME:  ${{ secrets.INTEGRATION_TEST_TABLE_NAME }}
+          LISTEN_ADDRESS: tcp://localhost:2379
+          SERVER_CERT_FILE_PATH: ${{ github.workspace }}/hack/certs/server.crt
+          SERVER_KEY_FILE_PATH: ${{ github.workspace }}/hack/certs/server.key
+          CLIENT_TRUSTED_CA_FILE_PATH: ${{ github.workspace }}/hack/certs/ca.crt
+          CLIENT_CERT_FILE_PATH: ${{ github.workspace }}/hack/certs/client.crt
+          CLIENT_KEY_FILE_PATH: ${{ github.workspace }}/hack/certs/client.key
+          SERVER_TRUSTED_CA_FILE_PATH: ${{ github.workspace }}/hack/certs/ca.crt
+        run: |
+          echo -e 'ACCOUNT_NAME '${ACCOUNT_NAME}'\nACCOUNT_KEY '${ACCOUNT_KEY}'\nTABLE_NAME '${TABLE_NAME//./}'\nLISTEN_ADDRESS '${LISTEN_ADDRESS}'\nUSE_TLS\nSERVER_CERT_FILE_PATH '${SERVER_CERT_FILE_PATH}'\nSERVER_KEY_FILE_PATH '${SERVER_KEY_FILE_PATH}'\nCLIENT_TRUSTED_CA_FILE_PATH '${CLIENT_TRUSTED_CA_FILE_PATH}'\nCLIENT_CERT_FILE_PATH '${CLIENT_CERT_FILE_PATH}'\nCLIENT_KEY_FILE_PATH '${CLIENT_KEY_FILE_PATH}'\nSERVER_TRUSTED_CA_FILE_PATH '${SERVER_TRUSTED_CA_FILE_PATH}'' | sudo tee --append hack/testing_vars  > /dev/null
+
+      - name: integration test
+        run: |
+         ADD_TEST_ARGS="-v" make integration-tests

@@ -19,7 +19,7 @@ func TestIntegrationWatch(t *testing.T) {
 	defer stopfn()
 
 	client := testutils.MakeTestEtcdClient(c, t)
-	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*20)
 	defer cancel()
 
 	firstComponent := testutils.RandStringRunes(8)
@@ -92,28 +92,26 @@ func TestIntegrationWatch(t *testing.T) {
 
 			changesMade[k] = &newVal
 			orderdChangeKeys = append(orderdChangeKeys, k)
-			/*
-				case 2: // delete
-					t.Logf("deleting key(%v):%v", insertRevs[k], k)
+		case 2: // delete
+			t.Logf("deleting key(%v):%v", insertRevs[k], k)
 
-					createRes, err := client.KV.Txn(ctx).If(
-						clientv3.Compare(clientv3.ModRevision(k), "=", insertRevs[k]),
-					).Then(
-						clientv3.OpDelete(k),
-					).Else(
-						clientv3.OpGet(k),
-					).Commit()
+			createRes, err := client.KV.Txn(ctx).If(
+				clientv3.Compare(clientv3.ModRevision(k), "=", insertRevs[k]),
+			).Then(
+				clientv3.OpDelete(k),
+			).Else(
+				clientv3.OpGet(k),
+			).Commit()
 
-					if err != nil {
-						t.Fatalf("failed to delete entry with error:%v", err)
-					}
-					if !createRes.Succeeded {
-						t.Fatalf("failed to create key result was not success")
-					}
+			if err != nil {
+				t.Fatalf("failed to delete entry with error:%v", err)
+			}
+			if !createRes.Succeeded {
+				t.Fatalf("failed to create key result was not success")
+			}
 
-					changesMade[k] = nil
-					orderdChangeKeys = append(orderdChangeKeys, k)
-			*/
+			changesMade[k] = nil
+			orderdChangeKeys = append(orderdChangeKeys, k)
 		case 3: // none
 			t.Logf("not touching key:%v", k)
 		}
@@ -136,11 +134,16 @@ func TestIntegrationWatch(t *testing.T) {
 	}
 
 	t.Logf("===== done creating changes ======= ")
+	// we are watching for 10s, ample time for events loop to run
 
 	// generate changes
 	events := make([]*clientv3.Event, 0, len(testData))
 	t.Logf("watch is starting at:%v", lastRev)
-	ctx = clientv3.WithRequireLeader(ctx)
+
+	wctx, wcancel := context.WithTimeout(context.TODO(), time.Second*10)
+	defer wcancel()
+
+	ctx = clientv3.WithRequireLeader(wctx)
 
 	// run multiple watchers to simulate multiple clients
 	_ = client.Watch(ctx, prefix, clientv3.WithRev(lastRev))

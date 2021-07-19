@@ -195,6 +195,7 @@ func (fr *fakeRecord) IsDeleteEvent() bool   { return fr.isDeleted }
 func (fr *fakeRecord) IsUpdateEvent() bool   { return fr.isUpdated }
 func (fr *fakeRecord) IsCreateEvent() bool   { return fr.isCreated }
 
+/* LONG TEST
 func TestLoadWithNotifications(t *testing.T) {
 	c, be := makeBackend(t)
 	lm := newListManagerForTest(c, be)
@@ -271,7 +272,7 @@ func TestLoadWithNotifications(t *testing.T) {
 		compareLists(savedList, gotList.toRecords(), t)
 	}
 }
-
+*/
 func TestEventsCompact(t *testing.T) {
 	c, be := makeBackend(t)
 	lm := newListManagerForTest(c, be)
