@@ -39,11 +39,13 @@ build-binary: prep-outputdir ## builds binary and drop it  in output directory
 	@go build -o $(mkfile_dirpath)/$(outputDir)/$(binaryName) $(GOFLAGS) $(mkfile_dirpath)/.
 	@echo "** built binary is at:$(mkfile_dirpath)/$(outputDir)/$(binaryName) "
 
-get-kubernetes: ## gets kubernetes source code for e2e tests
+get-kubernetes: ## gets kubernetes source code 
 	@$(mkfile_dirpath)/$(hackDir)/get_kubernetes.sh "$(KUBERNETES_VERSION)" "$(mkfile_dirpath)/$(kubernetes_testdir_name)" $(mkfile_dirpath)
 
+build-kubernetes: get-kubernetes ## buils kubernetes source code for e2e tests
+	@$(mkfile_dirpath)/$(hackDir)/get_kubernetes.sh "$(KUBERNETES_VERSION)" "$(mkfile_dirpath)/$(kubernetes_testdir_name)" $(mkfile_dirpath)
 
-e2e-test: get-kubernetes  ## runs e2e tests against an in-proc kube-api-server
+e2e-test: build-kubernetes  ## runs e2e tests against an in-proc kube-api-server
 	@echo "** running e2e test @ $(mkfile_dirpath)/test/e2e"
 	@echo "****************************************************************"
 	@echo "* The following tests runs etcd api and api-server in proc"
@@ -55,7 +57,7 @@ integration-tests: get-kubernetes ## runs integeration test
 	@echo "** running integration test @ $(mkfile_dirpath)/test/integration"
 	@LONDON_TESTING_VARS=$(varFilePath) go test $(mkfile_dirpath)/test/integration  -count=1 $(ADD_TEST_ARGS)
 
-unit-tests: ## runs unit tests
+unit-tests:get-kubernetes  ## runs unit tests
 	@echo "** running unit test in @ $(mkfile_dirpath)/pkg/backend/storerecord"
 	@LONDON_TESTING_VARS=$(varFilePath) go test $(mkfile_dirpath)/pkg/backend/storerecord   -count=1 $(ADD_TEST_ARGS)  || exit 1
 	@echo "** running unit test in @ $(mkfile_dirpath)/pkg/backend/revision"

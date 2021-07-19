@@ -216,7 +216,7 @@ func (fe *frontend) txnUpdate(ctx context.Context, rev int64, key string, val []
 		}
 
 		if storageerrors.IsConflictError(err) {
-			klogv2.V(4).Infof("TXN-UPDATE-CONFLICT IN: KEY(%v):REV(%v) - STORED:%v", key, rev, record.ModRevision())
+			klogv2.V(4).Infof("TXN-UPDATE-CONFLICT IN: KEY(%v):REV(%v) - STORED:%v", key, rev, oldRecord.ModRevision())
 			// record exist but not at the expected revision
 			resp := &etcdserverpb.TxnResponse{
 				Header:    createResponseHeader(currentRev),
@@ -226,8 +226,8 @@ func (fe *frontend) txnUpdate(ctx context.Context, rev int64, key string, val []
 					{
 						Response: &etcdserverpb.ResponseOp_ResponseRange{
 							ResponseRange: &etcdserverpb.RangeResponse{
-								Header: createResponseHeader(record.ModRevision()),
-								Kvs:    []*mvccpb.KeyValue{types.RecordToKV(record)},
+								Header: createResponseHeader(currentRev),
+								Kvs:    []*mvccpb.KeyValue{types.RecordToKV(oldRecord)},
 							},
 						},
 					},

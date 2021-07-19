@@ -58,6 +58,7 @@ func MakeTestConfig(t testing.TB, clearTable bool) *config.Config {
 	c.StorageKey.RevisionAccountPrimaryKey = configVals["REVISION_ACCOUNT_KEY"]
 	c.RevisionTableName = configVals["REVISION_TABLE_NAME"]
 	c.UseRevisionTable = useRevisionTable
+
 	// listening
 	c.ListenAddress = "tcp://0.0.0.0:2379"
 	if useTLS {
@@ -75,15 +76,12 @@ func MakeTestConfig(t testing.TB, clearTable bool) *config.Config {
 		t.Fatalf("failed to init runtime with err:%v", err)
 	}
 
-	// set lease mgmt to a short interval
-	c.LeaseMgmtRunInterval = 1
 	_, dontRecreate := configVals["DO_NOT_RECREATE_TABLE"]
 	if dontRecreate {
 		return c
 	}
 	if clearTable {
 		t.Logf("** CLEARING TABLE, will take a bit")
-		// TODO: Logic to drop and create table
 		ClearTable(t, c)
 	}
 	return c

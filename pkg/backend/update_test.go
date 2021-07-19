@@ -46,25 +46,25 @@ func TestUpdate(t *testing.T) {
 
 	// perform a valid update
 	updatedVal := []byte(randStringRunes(1024 * 1024 * 10))[:consts.DataRowMaxSize*3]
-	_, currentRecord, err = be.Update(key, updatedVal, insertRev, 1)
+	_, updatedRecord, err := be.Update(key, updatedVal, insertRev, 1)
 	if err != nil {
 		t.Fatalf("unexpected error during a valid update:%v", err)
 	}
 
-	if string(currentRecord.Value()) != string(updatedVal) {
+	if string(updatedRecord.Value()) != string(updatedVal) {
 		t.Fatalf("expected record returned from valid update to carry the updated value")
 	}
 
-	if currentRecord.ModRevision() == currentRecord.CreateRevision() {
+	if updatedRecord.ModRevision() == currentRecord.CreateRevision() {
 		t.Fatalf("expected modRev != createRev %v==%v", currentRecord.ModRevision(), currentRecord.CreateRevision())
 	}
 
-	if currentRecord.CreateRevision() != insertRev {
+	if updatedRecord.CreateRevision() != insertRev {
 		t.Fatalf("expected prevRev == insertedRev %v!=%v", currentRecord.PrevRevision(), insertRev)
 	}
 
 	// get to ensure update actually wrote the data
-	updatedRecord, _, err := be.Get(key, currentRecord.ModRevision())
+	updatedRecord, _, err = be.Get(key, updatedRecord.ModRevision())
 	if err != nil {
 		t.Fatalf("failed to get after update with err :%v", err)
 	}
@@ -74,7 +74,7 @@ func TestUpdate(t *testing.T) {
 	}
 
 	// update again to ensure that events insertion does not conflict
-	_, _, err = be.Update(key, updatedVal, currentRecord.ModRevision(), 1)
+	_, _, err = be.Update(key, updatedVal, updatedRecord.ModRevision(), 1)
 	if err != nil {
 		t.Fatalf("failed to repeat valid update %v", err)
 	}

@@ -194,7 +194,7 @@ type testEvent struct {
 
 func TestListEvents(t *testing.T) {
 
-	c := basictestutils.MakeTestConfig(t, false)
+	c := basictestutils.MakeTestConfig(t, true)
 
 	be, err := NewBackend(c)
 	if err != nil {

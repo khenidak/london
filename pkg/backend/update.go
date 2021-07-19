@@ -61,7 +61,7 @@ func (s *store) Update(key string, val []byte, revision int64, lease int64) (typ
 			return nil, nil, err
 		}
 		//		klogv2.Infof("update conflict:key:%v\nwant:%v\nstored:%v", key, revision, currentRecord.ModRevision())
-		return nil, getRecord, storage.AzureStorageServiceError{StatusCode: 409}
+		return getRecord, nil, storage.AzureStorageServiceError{StatusCode: 409}
 	}
 
 	batch := s.t.NewBatch()

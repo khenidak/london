@@ -201,10 +201,8 @@ func (c *Config) InitRuntime() error {
 				return err
 			}
 		} else {
-			if c.Runtime.RevisionStorageClient, err = storage.NewBasicClient(c.AccountName, c.StorageKey.AccountPrimaryKey); err != nil {
-				return err
-			}
-			// use the same table for revision and store
+			// use the same table and client for revision and store
+			c.Runtime.RevisionStorageClient = c.Runtime.StorageClient
 			c.RevisionTableName = c.TableName
 		}
 	}
