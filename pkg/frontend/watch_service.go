@@ -154,7 +154,7 @@ func (fe *frontend) watcherLoop(w *watcher, r *etcdserverpb.WatchCreateRequest) 
 
 		select {
 		case <-done:
-			klogv2.Infof("WATCH %v:%v is done", w.watcherId, w.key)
+			klogv2.V(4).Infof("WATCH %v:%v is done", w.watcherId, w.key)
 			return
 		default:
 			// lower the resolution of this loop otherwise
@@ -163,12 +163,18 @@ func (fe *frontend) watcherLoop(w *watcher, r *etcdserverpb.WatchCreateRequest) 
 
 			records, err := fe.lm.events(keyWithSuffix, lastRevision)
 			if err != nil {
-				klogv2.Infof("WATCH:[%v] CLOSERR (ListForWatch) :%v", keyWithSuffix, err)
+				klogv2.V(4).Infof("WATCH:[%v] CLOSERR (ListingEvents) :%v", keyWithSuffix, err)
 				w.closerFn(err.Error())
 				return
 			}
 
 			if len(records) == 0 {
+				// when api-server all channels will typically close
+				// if we have events, we try to send we will get error
+				// but if the watch is running against data that rarely change
+				// then we run the risk of running a go routine that does not have
+				// an api-server waiting on it.
+				// TODO
 				continue
 			}
 			// update last rev
@@ -179,20 +185,13 @@ func (fe *frontend) watcherLoop(w *watcher, r *etcdserverpb.WatchCreateRequest) 
 				// convert this record to an event
 				e, err := fe.recordToEvent(record)
 				if err != nil {
-					klogv2.Infof("WATCH:[%v] err (recordToEvent) :%v", keyWithSuffix, err)
+					klogv2.V(4).Infof("WATCH:[%v] err (recordToEvent) :%v", keyWithSuffix, err)
 					w.closerFn(err.Error())
 					return
 				}
-				/*
-					if e.Type == mvccpb.PUT {
-						klogv2.Infof("WATCH-UPDATE: %v:%v", string(e.Kv.Key), e.Kv.ModRevision)
-					}
-				*/
 				// add it to events
 				allEvents = append(allEvents, e)
 			}
-			// set revision to + 1
-			//lastRevision = lastRevision + 1
 
 			// TODO: We need to figure out a way to send create
 			// if the watch didn't produce data at all
@@ -205,7 +204,7 @@ func (fe *frontend) watcherLoop(w *watcher, r *etcdserverpb.WatchCreateRequest) 
 				}
 
 				if err := w.watchServer.Send(created); err != nil {
-					klogv2.Infof("WATCHSENDERR 1st send err %v:%v %v", w.watcherId, keyWithSuffix, err)
+					klogv2.V(4).Infof("WATCHSENDERR 1st send err %v:%v %v", w.watcherId, keyWithSuffix, err)
 					// don't close watcher here, since the error is from underlying
 					// grpc stream and context would be probably already closed
 					return
@@ -218,13 +217,13 @@ func (fe *frontend) watcherLoop(w *watcher, r *etcdserverpb.WatchCreateRequest) 
 			response := &etcdserverpb.WatchResponse{
 				Header:  createResponseHeader(lastRevision),
 				WatchId: w.watcherId,
-				//CompactRevision: r.StartRevision,
+				//CompactRevision: r.StartRevision, // TODO: read last compact rev from store
 				Events: allEvents,
 			}
 
 			// send it
 			if err := w.watchServer.Send(response); err != nil {
-				klogv2.Infof("WATCHCLOSEERR:[%v] err (sending response):%v", keyWithSuffix, err)
+				klogv2.V(4).Infof("WATCHCLOSEERR:[%v] err (sending response):%v", keyWithSuffix, err)
 				// don't close watcher here, since the error is from underlying
 				// grpc stream and context would be probably already closed
 				return
@@ -239,11 +238,6 @@ func (fe *frontend) recordToEvent(record types.Record) (*mvccpb.Event, error) {
 	e := &mvccpb.Event{}
 	e.Kv = types.RecordToKV(record)
 
-	/*
-		if !record.IsEventRecord() {
-			panic("must be event record") // should never happen. Left here during early release and must be removed later on
-		}
-	*/
 	if record.IsCreateEvent() {
 		e.Type = mvccpb.PUT
 		return e, nil

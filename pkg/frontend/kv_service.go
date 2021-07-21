@@ -34,7 +34,7 @@ func (fe *frontend) Put(ctx context.Context, r *etcdserverpb.PutRequest) (*etcds
 
 func (fe *frontend) Range(ctx context.Context, r *etcdserverpb.RangeRequest) (*etcdserverpb.RangeResponse, error) {
 	if err := isValidRangeRequest(r); err != nil {
-		klogv2.Infof("invalid RangeRequest:%+v with err:%v", r, err)
+		klogv2.V(4).Infof("invalid RangeRequest:%+v with err:%v", r, err)
 		return nil, err
 	}
 
@@ -72,7 +72,7 @@ func (fe *frontend) rangeList(ctx context.Context, r *etcdserverpb.RangeRequest)
 			return nil, createUnsupportedError("get all keys with revision is not supported")
 		}
 		// list all
-		klogv2.Infof("FE: EXPENSIVE CALL - ListAllCurrent() ")
+		klogv2.V(4).Infof("FE: EXPENSIVE CALL - ListAllCurrent() ")
 		rev, records, err := fe.be.ListAllCurrent()
 		if err != nil {
 			return nil, err
@@ -147,6 +147,7 @@ func (fe *frontend) Txn(ctx context.Context, r *etcdserverpb.TxnRequest) (*etcds
 		return fe.txnUpdate(ctx, rev, key, val, lease)
 	}
 
+	klogv2.V(2).Infof("Warning: Got unsupported range request:%+v", r)
 	return nil, createUnsupportedError("unsupported range request")
 }
 
@@ -178,10 +179,10 @@ func (fe *frontend) txnUpdate(ctx context.Context, rev int64, key string, val []
 	// update mode
 	oldRecord, record, err := fe.be.Update(key, val, rev, lease)
 	if err == nil {
+		// success: record was updated
 		// notify list manager
 		fe.lm.notifyUpdated(oldRecord, record)
 
-		// success: record was updated
 		resp := &etcdserverpb.TxnResponse{
 			Header:    createResponseHeader(record.ModRevision()),
 			Succeeded: true,
@@ -203,20 +204,30 @@ func (fe *frontend) txnUpdate(ctx context.Context, rev int64, key string, val []
 		// we should be able to ignore errors here
 		currentRev, _ := fe.be.CurrentRevision()
 		if storageerrors.IsNotFoundError(err) {
-			klogv2.V(4).Infof("TXN-UPDATE:NOT-FOUND: %v:%v", key, rev)
+
 			// record is not found
+			klogv2.V(4).Infof("Warning: Txn-Update: NOT-FOUND: %v:%v", key, rev)
 			// TODO set current
 			resp := &etcdserverpb.TxnResponse{
 				Header:    createResponseHeader(currentRev),
 				Succeeded: false,
-				Responses: []*etcdserverpb.ResponseOp{},
+				Responses: []*etcdserverpb.ResponseOp{
+					{
+						Response: &etcdserverpb.ResponseOp_ResponseRange{
+							ResponseRange: &etcdserverpb.RangeResponse{
+								Header: createResponseHeader(currentRev),
+								Kvs:    []*mvccpb.KeyValue{types.RecordToKV(oldRecord)},
+							},
+						},
+					},
+				},
 			}
 
 			return resp, nil
 		}
 
 		if storageerrors.IsConflictError(err) {
-			klogv2.V(4).Infof("TXN-UPDATE-CONFLICT IN: KEY(%v):REV(%v) - STORED:%v", key, rev, oldRecord.ModRevision())
+			klogv2.V(8).Infof("Warning: Txn-Update: Conflict: KEY(%v):REV(%v) - STORED:%v", key, rev, oldRecord.ModRevision())
 			// record exist but not at the expected revision
 			resp := &etcdserverpb.TxnResponse{
 				Header:    createResponseHeader(currentRev),
@@ -268,7 +279,6 @@ func (fe *frontend) txnDelete(ctx context.Context, key string, rev int64) (*etcd
 }
 
 func (fe *frontend) txnInsert(ctx context.Context, putRequest *etcdserverpb.PutRequest) (*etcdserverpb.TxnResponse, error) {
-	// TODO: validate the put request for case/values etc..
 	insertedRecord, err := fe.be.Insert(string(putRequest.Key), putRequest.Value, putRequest.Lease)
 	// error occured
 	if err != nil {
