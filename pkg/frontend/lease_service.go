@@ -57,7 +57,7 @@ func (fe *frontend) leaseMangementLoop() {
 			start := time.Now()
 			leases, keys := fe.leaseManagementIteration()
 			duration := time.Since(start)
-			klogv2.Errorf("lease-manager: ran for %v deleting %v keys over %v expired leases", duration, keys, leases)
+			klogv2.V(2).Infof("lease-manager: ran for %v deleting %v keys over %v expired leases", duration, keys, leases)
 
 		default:
 			// no op
@@ -71,7 +71,7 @@ func (fe *frontend) leaseManagementIteration() (leasesDeleted int, keysDeleted i
 	// The docs is not clear on what happens to
 	// Update/Delete ops on keys with attached lease.
 	// for now we are DELETE all keys. That means
-	// if a key  was updated with a lease it will be
+	// if a key was updated with a lease it will be
 	// DELETED-- not reverted back to original value
 	leases, err := fe.be.GetLeases()
 	if err != nil {

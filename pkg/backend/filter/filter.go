@@ -6,6 +6,11 @@ import (
 	"github.com/khenidak/london/pkg/backend/consts"
 )
 
+// Filter package is a small shim around azure table query language
+// etc instead of using x eq 'y' we chain it via
+// And(Equal(fName,val), NotEqual(otherFName, otherVal))
+// That makes our queries testable and debugable
+
 type Filter interface {
 	And(filters ...Filter)
 	Or(filters ...Filter)

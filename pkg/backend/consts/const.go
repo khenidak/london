@@ -1,7 +1,10 @@
 package consts
 
 const (
-	// field name
+	// Note: to minimize data on the wire we use appreviated field names
+	// where possible
+
+	// Field names
 	PartitionKeyFieldName   = "PartitionKey"
 	RowKeyFieldName         = "RowKey"
 	RevisionFieldName       = "mr" // ModRevision
@@ -12,7 +15,7 @@ const (
 	DataPartsCountFieldName = "c"
 	EntityTypeFieldName     = "et"
 
-	// DATA fields
+	// Data field names
 	DataField0 = "df0"
 	DataField1 = "df1"
 	DataField2 = "df2"
@@ -24,11 +27,12 @@ const (
 	DataField8 = "df8"
 	DataField9 = "df9"
 
-	// flags (must be string because sometimes they are used as rowKey)
+	// Flags
 	CurrentFlag = "C"
 	UpdatedFlag = "U"
 	DeletedFlag = "D"
 
+	// Entity Types
 	EntityTypeRow            = "RR"
 	EntityTypeData           = "DD"
 	EntityTypeEvent          = "EE"

@@ -89,7 +89,7 @@ func (s *store) GetLeases() ([]*types.Lease, error) {
 			break
 		}
 
-		res, err = res.NextResults(nil) // TODO: <-- is this correct??
+		res, err = res.NextResults(nil)
 		if err != nil {
 			return nil, err
 		}

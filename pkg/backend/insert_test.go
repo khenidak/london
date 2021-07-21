@@ -145,7 +145,7 @@ func TestInsert(t *testing.T) {
 	}
 
 	t.Run("repeat-insert", func(t *testing.T) {
-		// double insert should yeild into entity alraedy exist
+		// double insert should yeild into entity already exist
 		randKey := fmt.Sprintf(keyFormat, randStringRunes(8), randStringRunes(8), randStringRunes(8))
 		_, err = be.Insert(randKey, []byte("hello, World!"), 1)
 		if err != nil {
