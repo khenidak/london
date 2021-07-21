@@ -44,7 +44,7 @@ func (s *store) Compact(rev int64) (int64, error) {
 			klogv2.Infof("failed to complete compact request in:%v totalRequests:%d ms", time.Since(start), totalReq)
 			return
 		}
-		klogv2.Infof("completed compact requet keys:%v revs:%v using %v requests in %v", totalKeys, totalRev, totalReq, time.Since(start))
+		klogv2.V(2).Infof("completed compact requet keys:%v revs:%v using %v requests in %v", totalKeys, totalRev, totalReq, time.Since(start))
 	}()
 
 	// adds a rev grouped by key
@@ -117,14 +117,14 @@ func (s *store) Compact(rev int64) (int64, error) {
 		if res.NextLink == nil {
 			break
 		}
-		res, lastErr = res.NextResults(nil) // TODO: <-- is this correct??
+		res, lastErr = res.NextResults(nil)
 		if lastErr != nil {
 			return 0, lastErr
 		}
 
 	}
 
-	// add this point we may have keys with revs that are less than
+	// at this point we may have keys with revs that are less than
 	// batch size. We have to delete them and yes they will produce batches
 	// with less than batch optimum size. Because we call execBatch with everyadd
 	// the reminder for each key *is* less than batchsize and can go in one call
@@ -144,6 +144,7 @@ func (s *store) Compact(rev int64) (int64, error) {
 	return currentRev, err
 }
 
+// GetCompactedRev gets Compacted Rev from store.
 func (s *store) GetCompactedRev(force bool) (int64, error) {
 	s.lowWatermarkLock.Lock()
 	defer s.lowWatermarkLock.Unlock()
@@ -159,6 +160,8 @@ func (s *store) GetCompactedRev(force bool) (int64, error) {
 
 	return currentRev, nil
 }
+
+// set compact rev by updating the rev saved in store.
 func (s *store) setCompactedRev(rev int64) error {
 	s.lowWatermarkLock.Lock()
 	defer s.lowWatermarkLock.Unlock()
@@ -201,7 +204,7 @@ func (s *store) setCompactedRev(rev int64) error {
 	return err
 }
 
-// must be called with lock held
+// Loads the table entity that holds compacted rev.
 func (s *store) loadCompactedRev(force bool) error {
 	if !force && s.compactEntity != nil {
 		return nil // no need to load

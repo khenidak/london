@@ -17,7 +17,7 @@ import (
 )
 
 /*
-	a keyvalue pair are saved as:
+	a keyvalue pair are saved as a record. Each Record is:
 	1. row entity (carries main details +640KB split over 10 props each 64k)
 	2. n data entities. Each is 640KB split over 10 props
 	This enables support > 1mb limits of Azure table.
@@ -29,14 +29,22 @@ import (
 	everytime we update/delete the record. CreateRev is kept the same
 	- Update actions updates PrevRev field to allow getting old/new for watchers
 
-	a "current record" will always carry a known value in RowKey. This to ensure that an
+	a "current record" will always carry a known value (we use "C") in RowKey. This to ensure that an
 	insert will fail if there is a current record already exists.
 
-	each action on record creates an event. An event is one row entity (with no data entities, point to existing  data entities that are created by the record modification). Each event carries the same ModRev as the action  that caused the event to be created. Watch is all about these events.
+	each action on record creates an event. An event is one row entity. Each event carries the same ModRev as the action  that caused the event to be created. Watch is all about these events.
 
-	When Inserting rowKey == fixed value
-	When deleting we create a new row  mark it as delete
-	When updating we create replace existing current with new value and copy the previous record into a new reco  rd marking it as update. The existing current will carry PrevRevision
+	// TODO (@khenidak): A major optimization is to relay only on events for prev value. That means:
+  // on create: Create Record + Event
+	// On update: create the record, delete old record + create Event
+	// On Delete: Deleted old record + Create Event
+  // Note the optimization have impact on total # of api calls per operation
+	// But has smaller entities per batch.
+
+	Ops:
+	When Inserting Record.RowKey == fixed value
+	When deleting we delete existing Record.RowKey == fixed + Create a new record mark it as deleted
+	When updating we create replace existing current with new value and copy the previous record into a new record marking it as update. The existing current will carry PrevRevision
 
 	*** all entities maintain a well known field for revision
 */
@@ -145,7 +153,7 @@ func (s *store) execQueryFull(metadataLevel storage.MetadataLevel, o *storage.Qu
 			break
 		}
 
-		res, err = utils.SafeExecuteNextResult(res, nil) // TODO: <-- is this correct??(nil options)
+		res, err = utils.SafeExecuteNextResult(res, nil)
 		if err != nil {
 			return nil, err
 		}

@@ -13,7 +13,6 @@ import (
 // 1. delete current record
 // 2. create new record mark it as delete (record carries value, old revision)
 func (s *store) Delete(key string, revision int64) (types.Record, error) {
-	//	klogv2.Infof("STORE-DELETE:%v-%v", key, revision)
 	validKey := storerecord.CreateValidKey(key)
 	validRevision := storerecord.RevToString(revision)
 
@@ -72,6 +71,7 @@ func (s *store) Delete(key string, revision int64) (types.Record, error) {
 	newRowEntity := newRecord.RowEntity()
 	newRowEntity.Table = s.t
 	batch.InsertEntity(newRowEntity)
+
 	// insert data entities
 	for _, dataEntity := range newRecord.DataEntities() {
 		dataEntity.Table = s.t

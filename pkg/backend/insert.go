@@ -1,8 +1,6 @@
 package backend
 
 import (
-	//klogv2 "k8s.io/klog/v2"
-
 	storageerrors "github.com/khenidak/london/pkg/backend/storageerrors"
 	"github.com/khenidak/london/pkg/backend/storerecord"
 	"github.com/khenidak/london/pkg/backend/utils"
@@ -18,7 +16,6 @@ func (s *store) Insert(key string, value []byte, lease int64) (types.Record, err
 		return nil, err
 	}
 
-	// klogv2.Infof("STORE-INSERT: (%v) %v", rev, key)
 	record, err := storerecord.NewRecord(key, rev, lease, value)
 	if err != nil {
 		return nil, err

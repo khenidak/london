@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strconv"
 
-	//klogv2 "k8s.io/klog/v2"
-
 	"github.com/Azure/azure-sdk-for-go/storage"
 
 	"github.com/khenidak/london/pkg/backend/consts"
@@ -16,8 +14,6 @@ import (
 )
 
 func (s *store) Get(key string, revision int64) (types.Record, int64, error) {
-	// 	klogv2.Infof("STORE-GET: %v:%v", revision, key)
-
 	validKey := storerecord.CreateValidKey(key)
 	validRev := storerecord.RevToString(revision)
 
@@ -98,14 +94,12 @@ func (s *store) Get(key string, revision int64) (types.Record, int64, error) {
 		currentRev = record.ModRevision()
 	}
 
-	// klogv2.Infof("GET: %s:%v", key, record.ModRevision())
 	return record, currentRev, nil
 }
 
 // given a row entity, do we need to get data entities or can we
 // create a record with only row entity?
 func (s *store) GetIfNeeded(rowEntity *storage.Entity, forceCurrent bool) (types.Record, int64, error) {
-	// klogv2.Infof("STORE-GET-IF-NEEDED: %v:%v (current:%v)", rowEntity.Properties[consts.RevisionFieldName], rowEntity.PartitionKey, forceCurrent)
 	countDataEntitiesAsString := rowEntity.Properties[consts.DataPartsCountFieldName].(string)
 	countDataEntities, _ := strconv.ParseInt(countDataEntitiesAsString, 10, 32)
 	if countDataEntities > 0 {

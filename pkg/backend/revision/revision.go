@@ -14,6 +14,11 @@ import (
 	"github.com/khenidak/london/pkg/backend/utils"
 )
 
+/*
+ each record carries CreateMod and UpdateMode. Value is int64.
+ Revisioner is responsible for generating and incrementing these values these values.
+*/
+
 type Revisioner interface {
 	Increment() (int64, error)
 	Current() (int64, error)

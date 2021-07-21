@@ -1,8 +1,6 @@
 package backend
 
 import (
-	//klogv2 "k8s.io/klog/v2"
-
 	"github.com/Azure/azure-sdk-for-go/storage"
 
 	filterutils "github.com/khenidak/london/pkg/backend/filter"
