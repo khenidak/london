@@ -199,62 +199,79 @@ func (fe *frontend) txnUpdate(ctx context.Context, rev int64, key string, val []
 		}
 
 		return resp, nil
-	} else {
-		// error case -- update itself was not performed
-		// we should be able to ignore errors here
-		currentRev, _ := fe.be.CurrentRevision()
-		if storageerrors.IsNotFoundError(err) {
-
-			// record is not found
-			klogv2.V(4).Infof("Warning: Txn-Update: NOT-FOUND: %v:%v", key, rev)
-			// TODO set current
-			resp := &etcdserverpb.TxnResponse{
-				Header:    createResponseHeader(currentRev),
-				Succeeded: false,
-				Responses: []*etcdserverpb.ResponseOp{
-					{
-						Response: &etcdserverpb.ResponseOp_ResponseRange{
-							ResponseRange: &etcdserverpb.RangeResponse{
-								Header: createResponseHeader(currentRev),
-								Kvs:    []*mvccpb.KeyValue{types.RecordToKV(oldRecord)},
-							},
-						},
-					},
-				},
-			}
-
-			return resp, nil
-		}
-
-		if storageerrors.IsConflictError(err) {
-			klogv2.V(8).Infof("Warning: Txn-Update: Conflict: KEY(%v):REV(%v) - STORED:%v", key, rev, oldRecord.ModRevision())
-			// record exist but not at the expected revision
-			resp := &etcdserverpb.TxnResponse{
-				Header:    createResponseHeader(currentRev),
-				Succeeded: false,
-
-				Responses: []*etcdserverpb.ResponseOp{
-					{
-						Response: &etcdserverpb.ResponseOp_ResponseRange{
-							ResponseRange: &etcdserverpb.RangeResponse{
-								Header: createResponseHeader(currentRev),
-								Kvs:    []*mvccpb.KeyValue{types.RecordToKV(oldRecord)},
-							},
-						},
-					},
-				},
-			}
-			return resp, nil
-		}
 	}
 
+	// error cases -- update itself was not performed
+	// we should be able to ignore errors here
+	currentRev, _ := fe.be.CurrentRevision()
+
+	// record is not found
+	if storageerrors.IsNotFoundError(err) {
+		// this can happen if:
+		// 0. the client is really making a mistake.
+		// 1. api-server cache is not update yet. it will perform another get and retry
+		// 2. our own cache is yet to be updated.
+		// -- in order to avoid an unneeded retry for (#1+#2): inform listManage
+		// that this has been deleted.
+		// we have no rev here, so we have to resort to use key only
+		fe.lm.notifyDeletedKey(key)
+
+		klogv2.V(4).Infof("Warning: Txn-Update: NOT-FOUND: %v:%v", key, rev)
+		resp := &etcdserverpb.TxnResponse{
+			Header:    createResponseHeader(currentRev),
+			Succeeded: false,
+			Responses: []*etcdserverpb.ResponseOp{
+				{
+					Response: &etcdserverpb.ResponseOp_ResponseRange{
+						ResponseRange: &etcdserverpb.RangeResponse{
+							Header: createResponseHeader(currentRev),
+							Kvs:    []*mvccpb.KeyValue{types.RecordToKV(oldRecord)},
+						},
+					},
+				},
+			},
+		}
+
+		return resp, nil
+	}
+
+	// record exist but not at the expected revision
+	if storageerrors.IsConflictError(err) {
+		// similar to NotFound error. The catch here is we don't have old's old record
+		// so we use the insert notification
+		fe.lm.notifyInserted(oldRecord)
+
+		klogv2.V(8).Infof("Warning: Txn-Update: Conflict: KEY(%v):REV(%v) - STORED:%v", key, rev, oldRecord.ModRevision())
+		resp := &etcdserverpb.TxnResponse{
+			Header:    createResponseHeader(currentRev),
+			Succeeded: false,
+
+			Responses: []*etcdserverpb.ResponseOp{
+				{
+					Response: &etcdserverpb.ResponseOp_ResponseRange{
+						ResponseRange: &etcdserverpb.RangeResponse{
+							Header: createResponseHeader(currentRev),
+							Kvs:    []*mvccpb.KeyValue{types.RecordToKV(oldRecord)},
+						},
+					},
+				},
+			},
+		}
+		return resp, nil
+	}
+
+	// unknown error. return as is
 	return nil, err
 }
 func (fe *frontend) txnDelete(ctx context.Context, key string, rev int64) (*etcdserverpb.TxnResponse, error) {
 	record, err := fe.be.Delete(key, rev)
 
 	if err != nil {
-		klogv2.V(2).Infof("error deleting %v:%v %v", rev, key, err)
+		// similar to failed update cases
+		if storageerrors.IsNotFoundError(err) {
+			fe.lm.notifyDeletedKey(key)
+		}
+		klogv2.V(2).Infof("Warning: error deleting %v:%v %v", rev, key, err)
 		return nil, err // TODO: should it be an error response?
 	}
 
@@ -284,7 +301,7 @@ func (fe *frontend) txnInsert(ctx context.Context, putRequest *etcdserverpb.PutR
 	if err != nil {
 		// key existed
 		if storageerrors.IsEntityAlreadyExists(err) {
-			rev, _ := fe.be.CurrentRevision() // we ingore error here.
+			rev, _ := fe.be.CurrentRevision() // we ignore error here.
 			return &etcdserverpb.TxnResponse{
 				Succeeded: false,
 				Header:    createResponseHeader(rev),
