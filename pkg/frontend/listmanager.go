@@ -524,6 +524,10 @@ func (l *list) deleted(r types.Record) {
 	l.items.Delete(string(r.Key()))
 }
 
+func (l *list) deletedByKey(key string) {
+	l.items.Delete(key)
+}
+
 func (lm *listManager) notifyCompact(compactRev int64) {
 	// hmm assuming that we are on 64b, no torn reads
 	if lm.revLowWatermark < compactRev {
@@ -546,6 +550,14 @@ func (lm *listManager) notifyDeleted(r types.Record) {
 	// we ignore error here because we don't reload
 	l, _ := lm.getList(prefix, false)
 	l.deleted(r)
+}
+
+// used by front end to notify listManager of a deleted record by "key"
+func (lm *listManager) notifyDeletedKey(key string) {
+	prefix := prefixFromKey(key)
+	// we ignore error here because we don't reload
+	l, _ := lm.getList(prefix, false)
+	l.deletedByKey(key)
 }
 
 // used by front end to notify listManager of an updated record
