@@ -86,6 +86,11 @@ func getRunFlags(config *config.Config) []cli.Flag {
 			Value:       "tcp://0.0.0.0:2379",
 			Destination: &config.ListenAddress,
 		},
+		cli.IntFlag{
+			Name: "max-event-count",
+			Value: 10000, // Should be increased for large clusters
+			Destination: &config.MaxEventCount,
+		}
 
 		cli.BoolFlag{
 			Name:        "use-tls",

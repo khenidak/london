@@ -51,6 +51,7 @@ func MakeTestConfig(t testing.TB, clearTable bool) *config.Config {
 	_, useRevisionTable := configVals["USE_REVISION_TABLE"]
 
 	c := &config.Config{}
+	c.MaxEventCount = 10000
 	c.AccountName = configVals["ACCOUNT_NAME"]
 	c.StorageKey.AccountPrimaryKey = configVals["ACCOUNT_KEY"]
 	c.StorageKey.ConnectionString = configVals["CONNECTION_STRING"]

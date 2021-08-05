@@ -73,6 +73,9 @@ type Config struct {
 
 	// TODO MSI etc
 
+	// max in memory cached events
+	MaxEventCount int
+
 	Runtime Runtime
 }
 
