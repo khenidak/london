@@ -99,11 +99,6 @@ func TestListForPrefix(t *testing.T) {
 }
 */
 func TestListAllCurrent(t *testing.T) {
-	// NOTE NOTE NOTE NOTE TODO
-	// This test takes 30-45 extra to clear the table
-	// TODO: look into marking this test as long running
-	// and bypass it in common runs
-	return
 	c := basictestutils.MakeTestConfig(t, true)
 
 	be, err := NewBackend(c)
@@ -111,11 +106,11 @@ func TestListAllCurrent(t *testing.T) {
 		t.Fatalf("failed to create backend with err:%v", err)
 	}
 
-	// insert a 20 record
+	// insert a 10 record
 	data := make(map[string][]byte)
 	revs := make(map[string]int64)
 	keyFormat := "/%s/%s/%s"
-	for i := 0; i <= 20; i++ {
+	for i := 0; i <= 10; i++ {
 		key := fmt.Sprintf(keyFormat, randStringRunes(8), randStringRunes(8), randStringRunes(8))
 		// we insert small but we update big
 		keyValue := []byte(randStringRunes(1024 * 1024))[:consts.DataRowMaxSize-1]
@@ -130,10 +125,10 @@ func TestListAllCurrent(t *testing.T) {
 		revs[key] = rev
 	}
 
-	// delete first 10 record
+	// delete first 5 record
 	idx := 0
 	for key, _ := range data {
-		if idx == 9 {
+		if idx == 4 {
 			break
 		}
 		idx++

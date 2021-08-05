@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"testing"
 
@@ -81,8 +82,10 @@ func MakeTestConfig(t testing.TB, clearTable bool) *config.Config {
 		return c
 	}
 	if clearTable {
-		t.Logf("** CLEARING TABLE, will take a bit")
+		t.Logf("** CLEARING TABLE: will take a bit")
+		start := time.Now().UTC()
 		ClearTable(t, c)
+		t.Logf("** CLEARING TABLE - duration: %v", time.Now().UTC().Sub(start))
 	}
 	return c
 }
