@@ -66,20 +66,30 @@ type listItem struct {
 }
 
 func newlistManager(config *config.Config, be backend.Backend, revLowWatermark int64) (*listManager, error) {
+	klogv2.Infof("list manager: creating with low watermark: %v", revLowWatermark)
 	lm := &listManager{
 		config: config,
 		be:     be,
-		// last mod-rev loaded from store
-		revHighWatermark: revLowWatermark,
 		// last mod-rev marked as compacted
 		revLowWatermark: revLowWatermark,
 	}
 
 	// load all current keys to prime the cache
-	_, records, err := be.ListAllCurrent()
+	currentRev, records, err := be.ListAllCurrent()
 	if err != nil {
 		return nil, err
 	}
+
+	// set high and low water marks
+	if lm.revLowWatermark == 0 {
+		lm.revLowWatermark = currentRev - int64(config.MaxEventCount)
+		if lm.revLowWatermark < 0 {
+			lm.revLowWatermark = 0
+		}
+	}
+
+	lm.revHighWatermark = lm.revLowWatermark
+	klogv2.Infof("List manager: event load will start at: %v with max in memory events:%v", lm.revHighWatermark, config.MaxEventCount)
 
 	// feed those records
 	byPrefix := make(map[string][]types.Record)
@@ -154,17 +164,26 @@ func (lm *listManager) mgmtLoop() {
 }
 
 func (lm *listManager) mgmtFilterCompactedEventsIteration() {
-	// set current compacted rev
-	compactedRev, err := lm.be.GetCompactedRev(true)
+	compactedRev := int64(0)
+	var err error
+	if lm.revHighWatermark-lm.revLowWatermark >= int64(lm.config.MaxEventCount) {
+		// the # 1000 is arbitrary selected. We can increase or decrease it with memory consumption
+		// and functional correctness in mind. To increase use configuration
+		compactedRev = lm.revHighWatermark - int64(lm.config.MaxEventCount)
+		klogv2.Infof("list-manager: events in memory is > %v compacting in memory events (not depending on DB)", lm.config.MaxEventCount)
+	} else {
+		// what we have in memory is less than maxEventCount, check if the DB has been compacted.
+		compactedRev, err = lm.be.GetCompactedRev(true)
+		if err != nil {
+			klogv2.Errorf("list-manager: (event compact) failed to read compacted rev from store with err:%v. will try again later", err)
+			return
+		}
 
-	if err != nil {
-		klogv2.Errorf("list-manager: (event compact) failed to read compacted rev from store with err:%v. will try again later", err)
-		return
-	}
-	if compactedRev <= lm.revLowWatermark {
-		// nothing to do here
-		klogv2.Error("list-manager: (event compact) compacted rev less or equal to cached compacted rev, ignoring this run")
-		return
+		if compactedRev <= lm.revLowWatermark {
+			// nothing to do here
+			klogv2.Error("list-manager: (event compact) compacted rev less or equal to cached compacted rev, ignoring this run")
+			return
+		}
 	}
 
 	// set
