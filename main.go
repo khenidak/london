@@ -162,5 +162,11 @@ func getRunFlags(config *config.Config) []cli.Flag {
 			Usage:       "storage connection string. mutually exclusive with account name and key",
 			Destination: &config.StorageKey.ConnectionString,
 		},
+
+		cli.StringFlag{
+			Name:        "revision-connection-string",
+			Usage:       "storage connection string for revision. mutually exclusive with account name and key",
+			Destination: &config.StorageKey.RevisionConnectionString,
+		},
 	}
 }
