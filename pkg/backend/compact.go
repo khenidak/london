@@ -88,40 +88,74 @@ func (s *store) Compact(rev int64) (int64, error) {
 	f := filterutils.NewFilter()
 	f.And(
 		filterutils.RevisionLessThan(storerecord.RevToString(rev)),
-		filterutils.ExcludeCurrent(),
 		filterutils.ExcludeSysRecords(),
 	)
 
 	o := &storage.QueryOptions{
 		Filter: f.Generate(),
 	}
+
+	allResults := []*storage.Entity{}
 	res, lastErr = utils.SafeExecuteQuery(s.t, consts.DefaultTimeout, storage.NoMetadata, o)
 	if lastErr != nil {
 		return 0, lastErr
 	}
 
+	// collect all entities that match the above query
 	for {
 		if len(res.Entities) == 0 {
 			break
 		}
 
-		for _, e := range res.Entities {
-			// add it
-			addToBatch(e.PartitionKey, e.RowKey)
-			lastErr = shouldExecuteBatch(e.PartitionKey, false)
-			if lastErr != nil {
-				return 0, lastErr
-			}
-		}
+		allResults = append(allResults, res.Entities...)
 
 		if res.NextLink == nil {
 			break
 		}
-		res, lastErr = res.NextResults(nil)
+
+		res, lastErr = utils.SafeExecuteNextResult(res, nil)
 		if lastErr != nil {
 			return 0, lastErr
 		}
+	}
 
+	// filter out data rows that may below to a current entity.
+	// we have to loop twice for this.. sigh
+	filterEntities := make([]*storage.Entity, 0, len(allResults))
+	currentEntities := map[string]struct{}{}
+	for _, e := range allResults {
+		if e.RowKey == consts.CurrentFlag {
+			currentModRev := e.Properties[consts.RevisionFieldName].(string)
+			currentEntities[currentModRev] = struct{}{}
+		}
+	}
+
+	for _, e := range allResults {
+		modRev := e.Properties[consts.RevisionFieldName].(string)
+		entityType := e.Properties[consts.EntityTypeFieldName].(string)
+		// events are to be deleted even if they belong to "current" record
+		if entityType == consts.EntityTypeEvent {
+			filterEntities = append(filterEntities, e)
+			continue
+		}
+
+		// any data that does not belong to "current" record must also be deleted
+		if _, ok := currentEntities[modRev]; !ok {
+			filterEntities = append(filterEntities, e)
+		}
+	}
+
+	if len(filterEntities) == 0 {
+		return 0, nil
+	}
+
+	for _, e := range filterEntities {
+		// add it
+		addToBatch(e.PartitionKey, e.RowKey)
+		lastErr = shouldExecuteBatch(e.PartitionKey, false)
+		if lastErr != nil {
+			return 0, lastErr
+		}
 	}
 
 	// at this point we may have keys with revs that are less than

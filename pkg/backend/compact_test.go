@@ -8,6 +8,7 @@ import (
 	"github.com/khenidak/london/pkg/backend/consts"
 	filterutils "github.com/khenidak/london/pkg/backend/filter"
 	"github.com/khenidak/london/pkg/backend/storerecord"
+	"github.com/khenidak/london/pkg/backend/utils"
 
 	basictestutils "github.com/khenidak/london/test/utils/basic"
 )
@@ -48,19 +49,59 @@ func TestCompactDelete(t *testing.T) {
 	f := filterutils.NewFilter()
 	f.And(
 		filterutils.RevisionLessThan(storerecord.RevToString(lastRev)),
-		filterutils.ExcludeCurrent(),
 		filterutils.ExcludeSysRecords(),
 	)
 
 	o := &storage.QueryOptions{
 		Filter: f.Generate(),
 	}
-	res, err := c.Runtime.StorageTable.QueryEntities(consts.DefaultTimeout, storage.NoMetadata, o)
+
+	allResults := []*storage.Entity{}
+	res, err := utils.SafeExecuteQuery(c.Runtime.StorageTable, consts.DefaultTimeout, storage.NoMetadata, o)
 	if err != nil {
 		t.Fatalf("failed to query with err:%v", err)
 	}
 
-	if len(res.Entities) > 0 {
+	for {
+		if len(res.Entities) == 0 {
+			break
+		}
+
+		allResults = append(allResults, res.Entities...)
+
+		if res.NextLink == nil {
+			break
+		}
+
+		res, err = utils.SafeExecuteNextResult(res, nil)
+		if err != nil {
+			t.Fatalf("failed to execute NextResults:%v", err)
+		}
+	}
+	// filter out data rows that may below to a current entity.
+	// we have to loop twice for this.. sigh
+	filterEntities := make([]*storage.Entity, 0, len(allResults))
+	currentEntities := map[string]struct{}{}
+	for _, e := range allResults {
+		if e.RowKey == consts.CurrentFlag {
+			currentModRev := e.Properties[consts.RevisionFieldName].(string)
+			currentEntities[currentModRev] = struct{}{}
+		}
+	}
+	for _, e := range allResults {
+		modRev := e.Properties[consts.RevisionFieldName].(string)
+		entityType := e.Properties[consts.EntityTypeFieldName].(string)
+		if entityType == consts.EntityTypeEvent {
+			filterEntities = append(filterEntities, e)
+			continue
+		}
+
+		if _, ok := currentEntities[modRev]; !ok {
+			filterEntities = append(filterEntities, e)
+		}
+	}
+
+	if len(filterEntities) > 0 {
 		t.Fatalf("expected to find zero entities with rev < %v found %v", lastRev, len(res.Entities))
 	}
 }
