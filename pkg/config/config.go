@@ -26,8 +26,9 @@ type AuthStorageKey struct {
 	AccountPrimaryKey         string
 	RevisionAccountPrimaryKey string
 	ConnectionString          string
+	RevisionConnectionString  string
 	EndpointSuffix            string
-	IsCosmos                  bool
+	RevisionEndpointSuffix    string
 }
 
 type TLSConfig struct {
@@ -102,8 +103,6 @@ func parseConnectionString(cstr string) map[string]string {
 }
 
 func (c *Config) Validate() error {
-	// we don't support connection strings yet
-
 	if len(c.StorageKey.ConnectionString) != 0 {
 		//Cosmos db looks like
 		//DefaultEndpointsProtocol=https;AccountName=londontest;AccountKey=<hidden>;TableEndpoint=https://londontest.table.cosmos.azure.com:443/;
@@ -116,11 +115,21 @@ func (c *Config) Validate() error {
 		c.StorageKey.AccountPrimaryKey = parts[connectionStringAccountKey]
 		c.StorageKey.EndpointSuffix = parts[connectionStringEndpointSuffix]
 		if _, ok := parts["tableendpoint"]; ok {
-			c.StorageKey.IsCosmos = true
 			//todo parse this out of TableEndpoint
 			c.StorageKey.EndpointSuffix = "cosmos.azure.com"
 		}
-		//return fmt.Errorf("storage connection string is not supported yet")
+	}
+
+	if len(c.StorageKey.RevisionConnectionString) != 0 {
+		parts := parseConnectionString(c.StorageKey.RevisionConnectionString)
+
+		c.RevisionAccountName = parts[connectionStringAccountName]
+		c.StorageKey.RevisionAccountPrimaryKey = parts[connectionStringAccountKey]
+		c.StorageKey.RevisionEndpointSuffix = parts[connectionStringEndpointSuffix]
+		if _, ok := parts["tableendpoint"]; ok {
+			//todo parse this out of TableEndpoint
+			c.StorageKey.RevisionEndpointSuffix = "cosmos.azure.com"
+		}
 	}
 
 	/*Do we need to be explicit or just default to connections string if present?
@@ -195,16 +204,24 @@ func (c *Config) InitRuntime() error {
 		if c.Runtime.StorageClient, err = storage.NewBasicClient(c.AccountName, c.StorageKey.AccountPrimaryKey); err != nil {
 			return err
 		}
-		// check if revision is using it's own table
-		if c.UseRevisionTable {
-			if c.Runtime.RevisionStorageClient, err = storage.NewBasicClient(c.RevisionAccountName, c.StorageKey.RevisionAccountPrimaryKey); err != nil {
+	}
+
+	// check if revision is using it's own table
+	if c.UseRevisionTable {
+		if c.StorageKey.RevisionEndpointSuffix != "" {
+			if c.Runtime.RevisionStorageClient, err = storage.NewClient(c.RevisionAccountName, c.StorageKey.RevisionAccountPrimaryKey,
+				c.StorageKey.RevisionEndpointSuffix, cosmosApiVersion, true); err != nil {
 				return err
 			}
 		} else {
-			// use the same table and client for revision and store
-			c.Runtime.RevisionStorageClient = c.Runtime.StorageClient
-			c.RevisionTableName = c.TableName
+			if c.Runtime.RevisionStorageClient, err = storage.NewBasicClient(c.RevisionAccountName, c.StorageKey.RevisionAccountPrimaryKey); err != nil {
+				return err
+			}
 		}
+	} else {
+		// use the same table and client for revision and store
+		c.Runtime.RevisionStorageClient = c.Runtime.StorageClient
+		c.RevisionTableName = c.TableName
 	}
 
 	//use explicit cosmos flag in the config?
