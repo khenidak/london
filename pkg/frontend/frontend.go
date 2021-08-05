@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -50,11 +51,19 @@ func NewFrontend(config *config.Config, be backend.Backend) (Frontend, error) {
 		return nil, err
 	}
 
+	klogv2.Infof("Creating list manager..")
+	start := time.Now().UTC()
+	lm, err := newlistManager(config, be, compactedRev)
+	if err != nil {
+		return nil, err
+	}
+	klogv2.Infof("List manager was primed in %v", time.Now().UTC().Sub(start))
+
 	fe := &frontend{
 		config: config,
 		be:     be,
 		leases: make(map[int64]*types.Lease),
-		lm:     newlistManager(config, be, compactedRev),
+		lm:     lm,
 	}
 	// start lease mgmt loop
 	go fe.leaseMangementLoop()

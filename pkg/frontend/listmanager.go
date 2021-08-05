@@ -65,7 +65,7 @@ type listItem struct {
 	r    types.Record
 }
 
-func newlistManager(config *config.Config, be backend.Backend, revLowWatermark int64) *listManager {
+func newlistManager(config *config.Config, be backend.Backend, revLowWatermark int64) (*listManager, error) {
 	lm := &listManager{
 		config: config,
 		be:     be,
@@ -75,12 +75,37 @@ func newlistManager(config *config.Config, be backend.Backend, revLowWatermark i
 		revLowWatermark: revLowWatermark,
 	}
 
-	// run events load one iteration to
-	// ensure that all lists are ready
+	// load all current keys to prime the cache
+	_, records, err := be.ListAllCurrent()
+	if err != nil {
+		return nil, err
+	}
+
+	// feed those records
+	byPrefix := make(map[string][]types.Record)
+
+	// pivot the list by prefix,
+	// so we won't need to get/re-get lists
+	for _, record := range records {
+		prefix := prefixFromKey(string(record.Key()))
+		if _, ok := byPrefix[prefix]; !ok {
+			byPrefix[prefix] = make([]types.Record, 0)
+		}
+
+		byPrefix[prefix] = append(byPrefix[prefix], record)
+	}
+
+	// we can now process events by prefix
+	for prefix, recordsForPrefix := range byPrefix {
+		// we can saftely ingore error here
+		// since we are not going through a path that would generate an error
+		l, _ := lm.getList(prefix, false)
+		l.feedRecords(recordsForPrefix)
+	}
 
 	// start mgmtLoop
 	go lm.mgmtLoop()
-	return lm
+	return lm, nil
 }
 
 // for test only
